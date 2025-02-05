@@ -77,23 +77,21 @@ def fn_right(x, N, alpha, R):
 
 
 
-
-
 def label_solid_nodes(grid_pts, R, alpha):
     n_pts_tot = len(grid_pts[:,0])
     solid_pts = []
     for k in range(n_pts_tot):
-        if R**2 - grid_pts[k,1]**2 < 0:
+        x, y = grid_pts[k,0], grid_pts[k,1]
+        if R**2 - y**2 < 0:
             continue
-        if R**2 - grid_pts[k,1]**2 - 2*grid_pts[k,0]*alpha - alpha**2 < 0:
+        if R**2 - y**2 - 2*x*alpha - alpha**2 < 0:
             continue
         
-        if grid_pts[k,0] < np.sqrt(R**2 - grid_pts[k,1]**2):
-            if grid_pts[k,0] > np.sqrt(R**2\
-                                         - grid_pts[k,1]**2\
-                                             - 2*grid_pts[k,0]*alpha - alpha**2):
+        if x < np.sqrt(R**2 - y**2):
+            if x > np.sqrt(R**2 - y**2 - 2*x*alpha - alpha**2):
                 grid_pts[k,2] = 2
-                solid_pts.append( [ grid_pts[k,0], grid_pts[k,1] ] )
+                print("solid pt found")
+                solid_pts.append( [ x, y ] )
     
     solid_pts = np.asarray(solid_pts)
     return solid_pts
@@ -119,17 +117,19 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
                     grid_pts[i,2] = 1
                     x0, y0 = grid_pts[i,0], grid_pts[i,1]
                     bdy_pts.append( [ x0, y0 ] )
-                    boundary_nodes[(x0, y0)]
+                    bdy_pt = BoundaryNode(x0, y0)
+                    boundary_nodes[(x0, y0)] = bdy_pt
                     
     bdy_pts = np.asarray(bdy_pts)
-    return boundary_nodes
+    return bdy_pts #boundary_nodes
 
 
 # Loop through all boundary points, calculate
 # distances to the wall and normal vectors to the bdy curves.
 def distances_and_normals(boundary_nodes, R, alpha, vels, N):
-    distances = []
+    
     for (x0,y0), _ in boundary_nodes.items:
+        distance_list = []
         for j in range(len(vels)):
             v_x, v_y = vels[j, :]
             coeffs = [v_x**2 + v_y**2, 2*(y0*v_x + x0*v_y + v_x*alpha),\
@@ -139,15 +139,19 @@ def distances_and_normals(boundary_nodes, R, alpha, vels, N):
                 continue
             
             if len(roots) == 1 and roots > 0:
-                distances.append(roots)
+                distance_list.append(roots)
             elif len(roots) == 1 and roots < 0:
                 continue
             elif len(roots) == 2 and np.all(roots > 0):
-                distances.append(np.min(roots))
+                distance_list.append(np.min(roots))
             elif len(roots) == 2 and np.all(roots < 0):
                 continue
             elif len(roots) == 2 and np.any(roots < 0):
-                distances.append( roots[roots> 0])
+                distance_list.append( roots[roots> 0])
+        
+        #bdy_data.distances = distance_list
+    
+    
             
             
             #f = lambda t: bdy_curve_right_directional(t, x0, y0, vel_vec, N)
@@ -192,12 +196,17 @@ def main():
     x_min, x_max = -1, 1
     y_min, y_max = 0, 2
     R = 1
-    alpha = 0.8
+    alpha = 0.2
     x_vals = np.linspace(x_min,x_max + 0.1,100000)
     
     grid_pts = make_grid(x_min, x_max, y_min, y_max, n_pts_per_direction)
     solid_pts = label_solid_nodes(grid_pts, R, alpha)
     boundary_nodes = label_bdy_nodes(grid_pts, solid_pts, R, alpha)
+    
+    #distances_and_normals(boundary_nodes, R, alpha, vels, N)
+    
+    #for key, data in boundary_nodes:
+    #    print(data.distances)
     
     #distances_and_normals(boundary_nodes, bdy_curve, vels, N)
     
