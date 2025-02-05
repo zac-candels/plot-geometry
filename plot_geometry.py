@@ -85,6 +85,7 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
     dy = y_pts[1] - y_pts[0]
     bdy_pts = []
     boundary_nodes = {}
+    eps = 1e-5
     for i in range(len(grid_pts)):
         if grid_pts[i,2] == 2:
             continue
@@ -92,7 +93,7 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
             p = np.array([ grid_pts[i,0], grid_pts[i,1] ])
             for j in range(len(solid_pts)):
                 q = np.array([ solid_pts[j,0], solid_pts[j,1] ])
-                if np.linalg.norm(p - q) < np.sqrt(2)*np.max([dx,dy]):
+                if np.linalg.norm(p - q) <= np.sqrt(2)*np.max([dx,dy]) + eps:
                     grid_pts[i,2] = 1
                     x0, y0 = grid_pts[i,0], grid_pts[i,1]
                     bdy_pts.append( [ x0, y0 ] )
