@@ -41,18 +41,24 @@ def make_grid(x_min, x_max, y_min, y_max, n_pts):
     return grid_pts
 
     
-# Compute y-values
-def fn_left(x, N, alpha, R):
+# Needed for visualization
+def bdy_fn_left(x, N, alpha, R):
     if -N - alpha*1/2 < x < R -N - alpha:
         return np.sqrt(R**2 - (x + alpha + N)**2)
     else:
         return 
 
-def fn_right(x, N, alpha, R):
+def deriv_bdy_fn_left(x, y, N, alpha, R):
+    return -(x + alpha)/y
+
+def bdy_fn_right(x, N, alpha, R):
     if -N - alpha*1/2 < x < R - N:
         return np.sqrt(R**2 - (x + N)**2)
     else:
         return
+
+def deriv_bdy_fn_right(x, y, N):
+    return -x/y
 
 
 
@@ -109,34 +115,85 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
 def distances_and_normals(boundary_nodes, R, alpha, vels, N):
     
     for (x0,y0), _ in boundary_nodes.items():
+        if np.abs(y0 - 0) < 1e-4:
+            continue
         distance_list = []
+        normals_list = []
         for j in range(len(vels)):
             v_x, v_y = vels[j, :]
-            coeffs = [v_x**2 + v_y**2, 2*(y0*v_x + x0*v_y + v_x*alpha),\
+            # roots1 corresponds to left fn
+            coeffs1 = [v_x**2 + v_y**2, 2*(y0*v_x + x0*v_y + v_x*alpha),\
                       y0**2 - R**2 + x0**2 + alpha**2 + 2*x0*alpha]
-            roots = np.roots(coeffs)
-            if np.iscomplexobj(roots) == True:
-                continue
+            roots1 = np.roots(coeffs1)
             
-            if len(roots) == 1 and roots > 0:
-                distance_list.append(roots)
-            elif len(roots) == 1 and roots < 0:
+            # roots2 corresponds to right fn
+            coeffs2 = [v_x**2 + v_y**2, 2*(y0*v_x + x0*v_y),\
+                      y0**2 - R**2 + x0**2]
+            roots2 = np.roots(coeffs2)
+            
+            if np.any(roots1 < 0) == True and np.any(roots1 > 0) == True:
+                roots1 = roots1[roots1 > 0]
+                
+            if np.any(roots2 < 0) == True and np.any(roots2 > 0) == True:
+                roots2 = roots2[roots2 > 0]
+                
+            if np.all(roots1 > 0):
+                roots1 = np.min(roots1)
+                
+            if np.all(roots2 > 0):
+                roots2 = np.min(roots2)
+                
+            if np.all(roots1 < 0) and np.all(roots2 < 0):
                 continue
-            elif len(roots) == 2 and np.all(roots > 0):
-                distance_list.append(np.min(roots))
-            elif len(roots) == 2 and np.all(roots < 0):
+
+            if np.iscomplexobj(roots1) == True\
+                and np.iscomplexobj(roots2) == True:
                 continue
-            elif len(roots) == 2 and np.any(roots < 0):
-                distance_list.append( roots[roots> 0])
+
+            if np.iscomplexobj(roots1) == True\
+                and np.iscomplexobj(roots2) == False\
+                    and np.all(roots2< 0):
+                        continue
+
+            if np.iscomplexobj(roots2) == True\
+                and np.iscomplexobj(roots1) == False\
+                    and np.all(roots1< 0):
+                        continue
+
+            if np.iscomplexobj(roots1) == True\
+                and np.iscomplexobj(roots2) == False\
+                    and np.all(roots2> 0):
+                        which_fn = "Right"
+                        dist = roots2
+                        distance_list.append(dist)
+                        
+            if np.iscomplexobj(roots2) == True\
+                and np.iscomplexobj(roots1) == False\
+                    and np.all(roots1> 0):
+                        which_fn = "Left"
+                        dist = roots1
+                        distance_list.append(dist)
+                        
+            if np.all(roots1 > 0) == True and np.all(roots2 > 0) == True:
+                dist = np.min( [roots1, roots2] )
+                if roots1 < roots2:
+                    which_fn = "Left"
+                else:
+                    which_fn = "Right"
+                distance_list.append( dist )
+            
+            if which_fn == "Right": # ie right bdy function
+                slope_at_bdy_curve = deriv_bdy_fn_right(x0, y0, N)
+                slope_of_normal = -1/slope_at_bdy_curve
+                normal_vec = np.array( [1, slope_of_normal] )
+                normal_vec = normal_vec/np.linalg.norm(normal_vec)
+                normals_list.append(normal_vec)
+            
+            
+            
+            
         
         #bdy_data.distances = distance_list
-    
-    
-            
-            
-            #f = lambda t: bdy_curve_right_directional(t, x0, y0, vel_vec, N)
-            
-            
 
 
 def visualize(x_vals, grid_pts, solid_pts, boundary_nodes, N, alpha, R):
@@ -147,8 +204,8 @@ def visualize(x_vals, grid_pts, solid_pts, boundary_nodes, N, alpha, R):
     y_r = np.zeros([len(x_vals), 5])
     for i in range(N):
         for j in range(len(x_vals)):
-            y_l[j, i] = fn_left(x_vals[j], i, alpha, R)
-            y_r[j, i] = fn_right(x_vals[j], i, alpha, R)
+            y_l[j, i] = bdy_fn_left(x_vals[j], i, alpha, R)
+            y_r[j, i] = bdy_fn_right(x_vals[j], i, alpha, R)
             
     plt.figure()
     for i in range(N):
