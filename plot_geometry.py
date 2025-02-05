@@ -41,27 +41,6 @@ def make_grid(x_min, x_max, y_min, y_max, n_pts):
     return grid_pts
 
     
-
-def bdy_curve_left(x, y, N, alpha, R):
-    if -N - alpha*1/2 < x < R -N - alpha:
-        return y - np.sqrt(R**2 - (x + alpha + N)**2)
-    else:
-        return
-
-def bdy_curve_left_directional(t, x0, y0, v, N):
-    v_x, v_y = v
-    return bdy_curve_left(x0 + t*v_x, y0 + t*v_y, N)
-
-def bdy_curve_right(x, y, N, alpha, R):
-    if -N - alpha*1/2 < x < R - N:
-        return y - np.sqrt(R**2 - (x + N)**2)
-    else:
-        return
-    
-def bdy_curve_right_directional(t, x0, y0, v, N):
-    v_x, v_y = v
-    return bdy_curve_right(x0 + t*v_x, y0 + t*v_y, N)
-
 # Compute y-values
 def fn_left(x, N, alpha, R):
     if -N - alpha*1/2 < x < R -N - alpha:
@@ -121,14 +100,14 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
                     boundary_nodes[(x0, y0)] = bdy_pt
                     
     bdy_pts = np.asarray(bdy_pts)
-    return bdy_pts #boundary_nodes
+    return boundary_nodes
 
 
 # Loop through all boundary points, calculate
 # distances to the wall and normal vectors to the bdy curves.
 def distances_and_normals(boundary_nodes, R, alpha, vels, N):
     
-    for (x0,y0), _ in boundary_nodes.items:
+    for (x0,y0), _ in boundary_nodes.items():
         distance_list = []
         for j in range(len(vels)):
             v_x, v_y = vels[j, :]
@@ -159,14 +138,16 @@ def distances_and_normals(boundary_nodes, R, alpha, vels, N):
             
 
 
-def visualize(x_vals, y_l, y_r, N, alpha, R):
+def visualize(x_vals, grid_pts, solid_pts, boundary_nodes, N, alpha, R):
     
+    x, y = grid_pts[:,0], grid_pts[:,1]
+    bdy_pts = np.asarray(list(boundary_nodes.keys()))
     y_l = np.zeros([len(x_vals), 5])
     y_r = np.zeros([len(x_vals), 5])
     for i in range(N):
         for j in range(len(x_vals)):
-            y_l[j, i] = fn_left(x_vals[j], i)
-            y_r[j, i] = fn_right(x_vals[j], i)
+            y_l[j, i] = fn_left(x_vals[j], i, alpha, R)
+            y_r[j, i] = fn_right(x_vals[j], i, alpha, R)
             
     plt.figure()
     for i in range(N):
@@ -174,9 +155,9 @@ def visualize(x_vals, y_l, y_r, N, alpha, R):
         plt.plot(x_vals, y_r[:,i] )
         plt.xlim([-(N-1)-alpha*1/2-0.1, R - (N-1) + 0.1])
         plt.axhline(0, color='black')
-        #plt.scatter(X, Y, color="black", s=1)
-        #plt.scatter(solid_pts[:,0],solid_pts[:,1], color="red", marker="o", s=1)
-        #plt.scatter(bdy_pts[:,0],bdy_pts[:,1], color="green", marker="o", s=5)
+        plt.scatter(x, y, color="black", s=1)
+        plt.scatter(solid_pts[:,0],solid_pts[:,1], color="red", marker="o", s=1)
+        plt.scatter(bdy_pts[:,0],bdy_pts[:,1], color="green", marker="o", s=5)
 
 
 
@@ -203,14 +184,10 @@ def main():
     solid_pts = label_solid_nodes(grid_pts, R, alpha)
     boundary_nodes = label_bdy_nodes(grid_pts, solid_pts, R, alpha)
     
-    #distances_and_normals(boundary_nodes, R, alpha, vels, N)
+    distances_and_normals(boundary_nodes, R, alpha, vels, N)
+
     
-    #for key, data in boundary_nodes:
-    #    print(data.distances)
-    
-    #distances_and_normals(boundary_nodes, bdy_curve, vels, N)
-    
-    #visualize(x_vals, N, alpha, R)
+    visualize(x_vals, grid_pts, solid_pts, boundary_nodes, N, alpha, R)
     
     
 main()
