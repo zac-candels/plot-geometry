@@ -115,6 +115,7 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
                             
                     bdy_pt = BoundaryNode(x0, y0, directions)
                     boundary_nodes[(x0, y0)] = bdy_pt
+                    break
                     
     return boundary_nodes
 
@@ -129,8 +130,8 @@ def distances_and_normals(boundary_nodes, R, alpha, vels, N):
             continue
         distance_list = []
         normals_list = []
-        for j in range(len(vels)):
-            v_x, v_y = vels[j, :]
+        for j in range(len(directions)):
+            v_x, v_y = directions[j]
             # roots1 corresponds to left fn
             coeffs1 = [v_x**2 + v_y**2, 2*(y0*v_x + x0*v_y + v_x*alpha),\
                       y0**2 - R**2 + x0**2 + alpha**2 + 2*x0*alpha]
@@ -264,7 +265,14 @@ def main():
     boundary_nodes = label_bdy_nodes(grid_pts, solid_pts, R, alpha)
     
     distances_and_normals(boundary_nodes, R, alpha, vels, N)
+    
+    list_dirs = []
+    for (x0,y0), bdy_node in boundary_nodes.items():
+        list_dirs.append(len(bdy_node.directions))
+        print( (x0, y0), " ", len(bdy_node.directions), "\n\n")
 
+        
+    print(max(list_dirs))
     
     visualize(x_vals, grid_pts, solid_pts, boundary_nodes, N, alpha, R)
     
