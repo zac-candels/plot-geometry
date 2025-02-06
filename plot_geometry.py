@@ -116,7 +116,6 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
                     bdy_pt = BoundaryNode(x0, y0, directions)
                     boundary_nodes[(x0, y0)] = bdy_pt
                     
-    bdy_pts = np.asarray(bdy_pts)
     return boundary_nodes
 
 
@@ -125,6 +124,7 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
 def distances_and_normals(boundary_nodes, R, alpha, vels, N):
     
     for (x0,y0), bdy_node in boundary_nodes.items():
+        directions = bdy_node.directions
         if np.abs(y0 - 0) < 1e-4:
             continue
         distance_list = []
