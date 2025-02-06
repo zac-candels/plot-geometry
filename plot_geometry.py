@@ -21,9 +21,10 @@ class BoundaryNode(GridNode):
 """
 
 class BoundaryNode:
-    def __init__(self, x, y):
+    def __init__(self, x, y, directions):
         self.x = x
         self.y = y
+        self.directions = directions
     distances = []
     normals = []
 
@@ -93,6 +94,7 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
     boundary_nodes = {}
     eps = 1e-5
     for i in range(len(grid_pts)):
+        directions = []
         if grid_pts[i,2] == 2:
             continue
         else:
@@ -100,10 +102,18 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
             for j in range(len(solid_pts)):
                 q = np.array([ solid_pts[j,0], solid_pts[j,1] ])
                 if np.linalg.norm(p - q) <= np.sqrt(2)*np.max([dx,dy]) + eps:
+                    directions.append( (p - q)/np.linalg.norm(p - q) )
                     grid_pts[i,2] = 1
                     x0, y0 = grid_pts[i,0], grid_pts[i,1]
                     bdy_pts.append( [ x0, y0 ] )
-                    bdy_pt = BoundaryNode(x0, y0)
+                    for k in range(len(solid_pts)):
+                        if k == j:
+                            continue
+                        q = np.array([ solid_pts[k,0], solid_pts[k,1] ])
+                        if np.linalg.norm(p - q) <= np.sqrt(2)*np.max([dx,dy]) + eps:
+                           directions.append( (p - q)/np.linalg.norm(p - q) ) 
+                            
+                    bdy_pt = BoundaryNode(x0, y0, directions)
                     boundary_nodes[(x0, y0)] = bdy_pt
                     
     bdy_pts = np.asarray(bdy_pts)
@@ -220,13 +230,13 @@ def visualize(x_vals, grid_pts, solid_pts, boundary_nodes, N, alpha, R):
             
     plt.figure()
     for i in range(N):
-        plt.plot(x_vals, y_l[:,i])
-        plt.plot(x_vals, y_r[:,i] )
+        plt.plot(x_vals, y_l[:,i], color="blue")
+        plt.plot(x_vals, y_r[:,i], color="blue" )
         plt.xlim([-(N-1)-alpha*1/2-0.1, R - (N-1) + 0.1])
         plt.axhline(0, color='black')
         plt.scatter(x, y, color="black", s=1)
-        plt.scatter(solid_pts[:,0],solid_pts[:,1], color="red", marker="o", s=1)
-        plt.scatter(bdy_pts[:,0],bdy_pts[:,1], color="green", marker="o", s=5)
+        plt.scatter(solid_pts[:,0],solid_pts[:,1], color="red", marker="o", s=4)
+        plt.scatter(bdy_pts[:,0],bdy_pts[:,1], color="green", marker="o", s=12)
 
 
 
