@@ -75,7 +75,7 @@ def label_solid_nodes(grid_pts, R, alpha):
         if x < np.sqrt(R**2 - y**2):
             if x > np.sqrt(R**2 - y**2 - 2*x*alpha - alpha**2):
                 grid_pts[k,2] = 2
-                print("solid pt found")
+                #print("solid pt found")
                 solid_pts.append( [ x, y ] )
     
     solid_pts = np.asarray(solid_pts)
@@ -114,7 +114,7 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
 # distances to the wall and normal vectors to the bdy curves.
 def distances_and_normals(boundary_nodes, R, alpha, vels, N):
     
-    for (x0,y0), _ in boundary_nodes.items():
+    for (x0,y0), bdy_node in boundary_nodes.items():
         if np.abs(y0 - 0) < 1e-4:
             continue
         distance_list = []
@@ -163,6 +163,7 @@ def distances_and_normals(boundary_nodes, R, alpha, vels, N):
             if np.iscomplexobj(roots1) == True\
                 and np.iscomplexobj(roots2) == False\
                     and np.all(roots2> 0):
+                        print("dist found")
                         which_fn = "Right"
                         dist = roots2
                         distance_list.append(dist)
@@ -170,11 +171,13 @@ def distances_and_normals(boundary_nodes, R, alpha, vels, N):
             if np.iscomplexobj(roots2) == True\
                 and np.iscomplexobj(roots1) == False\
                     and np.all(roots1> 0):
+                        print("dist found")
                         which_fn = "Left"
                         dist = roots1
                         distance_list.append(dist)
                         
             if np.all(roots1 > 0) == True and np.all(roots2 > 0) == True:
+                print("dist found")
                 dist = np.min( [roots1, roots2] )
                 if roots1 < roots2:
                     which_fn = "Left"
@@ -188,7 +191,15 @@ def distances_and_normals(boundary_nodes, R, alpha, vels, N):
                 normal_vec = np.array( [1, slope_of_normal] )
                 normal_vec = normal_vec/np.linalg.norm(normal_vec)
                 normals_list.append(normal_vec)
-            
+                
+            if which_fn == "Left": # ie right bdy function
+                slope_at_bdy_curve = deriv_bdy_fn_left(x0, y0, N, alpha, R)
+                slope_of_normal = -1/slope_at_bdy_curve
+                normal_vec = np.array( [1, slope_of_normal] )
+                normal_vec = normal_vec/np.linalg.norm(normal_vec)
+                normals_list.append(normal_vec)
+        bdy_node.distances = distance_list
+        bdy_node.normals = normals_list
             
             
             
