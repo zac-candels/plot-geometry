@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy
+from scipy.spatial import KDTree
 from shapely.geometry import Point, Polygon
 
 # This program does several things.
@@ -15,13 +15,13 @@ from shapely.geometry import Point, Polygon
 # Note, to determine the position of a grid point in the c++ code,
 # use the function ComputeXYZ in the service.hh header file.
 
-plt.close('all')
+#plt.close('all')
 
 class BoundaryNode:
-    def __init__(self, x, y, directions):
+    def __init__(self, x, y, velocity_vecs):
         self.x = x
         self.y = y
-        self.directions = directions
+        self.velocity_vecs = velocity_vecs
     distances = []
     normals = []
 
@@ -105,35 +105,104 @@ def label_bdy_points(grid_pts, solid_pts):
     boundary_nodes = {}
     eps = 1e-5
     for i in range(len(grid_pts)):
-        directions = []
+        velocity_vecs = []
         if grid_pts[i,2] == 2:
             continue
         else:
-            p = np.array([ grid_pts[i,0], grid_pts[i,1] ])
+            P = np.array([ grid_pts[i,0], grid_pts[i,1] ])
             for j in range(len(solid_pts)):
-                q = np.array([ solid_pts[j,0], solid_pts[j,1] ])
-                if np.linalg.norm(p - q) <= np.sqrt(2)*np.max([dx,dy]) + eps:
-                    directions.append( (p - q)/np.linalg.norm(p - q) )
+                Q = np.array([ solid_pts[j,0], solid_pts[j,1] ])
+                if np.linalg.norm(Q-P) <= np.sqrt(2)*np.max([dx,dy]) + eps:
+                    velocity_vecs.append( (Q - P)/np.linalg.norm(Q-P) )
                     grid_pts[i,2] = 1
                     x0, y0 = grid_pts[i,0], grid_pts[i,1]
                     bdy_pts.append( [ x0, y0 ] )
                     for k in range(len(solid_pts)):
                         if k == j:
                             continue
-                        q = np.array([ solid_pts[k,0], solid_pts[k,1] ])
-                        if np.linalg.norm(p - q)\
+                        Q = np.array([ solid_pts[k,0], solid_pts[k,1] ])
+                        if np.linalg.norm(Q - P)\
                             <= np.sqrt(2)*np.max([dx,dy]) + eps:
                                 
-                           directions.append( (p - q)/np.linalg.norm(p - q) ) 
+                           velocity_vecs.append( (Q - P)/np.linalg.norm(Q - P) ) 
                             
-                    bdy_pt = BoundaryNode(x0, y0, directions)
+                    bdy_pt = BoundaryNode(x0, y0, velocity_vecs)
                     boundary_nodes[(x0, y0)] = bdy_pt
                     break
                     
     return boundary_nodes
 
-def distances_and_normals(bdy_pts, left_bdy_pts, right_bdy_pts):
-    pass
+
+def distances_and_normals(bdy_nodes, left_bdy_pts, right_bdy_pts):
+    
+    
+    
+    def signed_distance(p, x0, u):
+        """Compute the signed distance of point p from the line x0 + t*u."""
+        v_perp = np.array([-u[1], u[0]])  # Perpendicular unit vector
+        return np.dot(p - x0, v_perp)
+    
+    
+    
+    def find_closest_points(pt_set, x0, unit_vec, k=10):
+        debug_distances = []
+        """Find the closest points in pt_set on either side of the line x0 + t*u."""
+        # Build KD-tree for fast nearest neighbor search
+        tree = KDTree(pt_set)
+        
+        # Find k nearest neighbors to x0
+        _, idxs = tree.query(x0, k=k)
+        
+        closest_pos = None
+        closest_neg = None
+        min_pos_dist = float('inf')
+        min_neg_dist = float('inf')
+        
+        for idx in idxs:
+            p = pt_set[idx]
+            d = signed_distance(p, x0, unit_vec)
+            
+            debug_distances.append(d)
+            
+            if d > 0 and d < min_pos_dist:
+                closest_pos = p
+                min_pos_dist = d
+            elif d < 0 and abs(d) < min_neg_dist:
+                closest_neg = p
+                min_neg_dist = abs(d)
+        
+        return closest_neg, closest_pos, debug_distances
+        
+    pt_set = np.concatenate( [left_bdy_pts, right_bdy_pts] )
+    
+    
+    for location, node_info in bdy_nodes.items():
+        x_b = np.asarray( location )
+        for i in range(len(node_info.velocity_vecs)):
+            unit_vel_vec = node_info.velocity_vecs[i]
+            pt1, pt2, d = find_closest_points(pt_set, x_b, unit_vel_vec)  
+            v = pt2 - pt1
+            
+            intersection_mat = np.array([ [v[0], -unit_vel_vec[0]],
+                                         [v[1], -unit_vel_vec[1]] ])
+            intersection_rhs_vec = np.array([ x_b[0] - pt1[0],
+                                              x_b[1] - pt1[1] ])
+            
+            intersection_distances = np.linalg.solve(intersection_mat,
+                                                     intersection_rhs_vec)
+            
+            delta = intersection_distances[1]
+            if delta > 1:
+                continue
+            else:
+                node_info.distances.append(delta)
+            
+            
+            
+        
+
+
+
 
 
 def visualize(grid_pts, left_bdy_pts, right_bdy_pts, solid_pts, bdy_nodes):
@@ -151,7 +220,7 @@ def main():
     
     alpha = 0.2
     R = 1
-    N_bdy_pts = 100
+    N_bdy_pts = 400
     N_repeats = 1
     n_grid_pts = 10
     x_min, x_max = -2, 2
