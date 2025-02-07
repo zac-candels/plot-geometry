@@ -22,8 +22,8 @@ class BoundaryNode:
         self.x = x
         self.y = y
         self.velocity_vecs = velocity_vecs
-    distances = []
-    normals = []
+        self.distances = []
+        self.normals = []
 
 
 def bdy_fn_left(x, N_repeats, alpha, R):
@@ -196,12 +196,9 @@ def distances_and_normals(bdy_nodes, left_bdy_pts, right_bdy_pts):
                 continue
             else:
                 node_info.distances.append(delta)
+    
+    return bdy_nodes
             
-            
-            
-        
-
-
 
 
 
@@ -236,7 +233,8 @@ def main():
     
     bdy_nodes = label_bdy_points(grid_pts, solid_pts)
     
-    distances_and_normals(bdy_nodes, left_bdy_curve_pts, right_bdy_curve_pts)
+    bdy_nodes = distances_and_normals(bdy_nodes,\
+                                      left_bdy_curve_pts, right_bdy_curve_pts)
     
     visualize(grid_pts, left_bdy_curve_pts,
               right_bdy_curve_pts, solid_pts, bdy_nodes)
