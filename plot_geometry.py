@@ -5,20 +5,6 @@ from scipy.optimize import fsolve
 
 plt.close('all')
 
-"""
-class GridNode:
-    def __init__(self, x, y, node_type):
-        self.x = x
-        self.y = y
-        self.type = node_type
-
-        
-class BoundaryNode(GridNode):
-    def __init__(self, x, y):
-        super().__init__(x, y, "boundary")
-    distances = [] #np.array(distances)
-    normals = [] #np.array(normals)
-"""
 
 class BoundaryNode:
     def __init__(self, x, y, directions):
@@ -63,7 +49,7 @@ def deriv_bdy_fn_right(x, y, N):
 
 
 
-def label_solid_nodes(grid_pts, R, alpha):
+def label_solid_nodes_analytical_curve(grid_pts, R, alpha):
     n_pts_tot = len(grid_pts[:,0])
     solid_pts = []
     for k in range(n_pts_tot):
@@ -84,7 +70,7 @@ def label_solid_nodes(grid_pts, R, alpha):
             
                 
 # Label boundary nodes
-def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
+def label_bdy_nodes_analytical_curve(grid_pts, solid_pts, R, alpha):
     x_pts = grid_pts[:,0]
     dx = x_pts[1] - x_pts[0]
     
@@ -110,7 +96,9 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
                         if k == j:
                             continue
                         q = np.array([ solid_pts[k,0], solid_pts[k,1] ])
-                        if np.linalg.norm(p - q) <= np.sqrt(2)*np.max([dx,dy]) + eps:
+                        if np.linalg.norm(p - q)\
+                            <= np.sqrt(2)*np.max([dx,dy]) + eps:
+                                
                            directions.append( (p - q)/np.linalg.norm(p - q) ) 
                             
                     bdy_pt = BoundaryNode(x0, y0, directions)
@@ -122,7 +110,7 @@ def label_bdy_nodes(grid_pts, solid_pts, R, alpha):
 
 # Loop through all boundary points, calculate
 # distances to the wall and normal vectors to the bdy curves.
-def distances_and_normals(boundary_nodes, R, alpha, vels, N):
+def distances_and_normals_analytical_curve(boundary_nodes, R, alpha, vels, N):
     
     for (x0,y0), bdy_node in boundary_nodes.items():
         directions = bdy_node.directions
@@ -236,7 +224,8 @@ def visualize(x_vals, grid_pts, solid_pts, boundary_nodes, N, alpha, R):
         plt.xlim([-(N-1)-alpha*1/2-0.1, R - (N-1) + 0.1])
         plt.axhline(0, color='black')
         plt.scatter(x, y, color="black", s=1)
-        plt.scatter(solid_pts[:,0],solid_pts[:,1], color="red", marker="o", s=4)
+        plt.scatter(solid_pts[:,0],solid_pts[:,1],\
+                    color="red", marker="o", s=4)
         plt.scatter(bdy_pts[:,0],bdy_pts[:,1], color="green", marker="o", s=12)
 
 
@@ -261,10 +250,11 @@ def main():
     x_vals = np.linspace(x_min,x_max + 0.1,100000)
     
     grid_pts = make_grid(x_min, x_max, y_min, y_max, n_pts_per_direction)
-    solid_pts = label_solid_nodes(grid_pts, R, alpha)
-    boundary_nodes = label_bdy_nodes(grid_pts, solid_pts, R, alpha)
+    solid_pts = label_solid_nodes_analytical_curve(grid_pts, R, alpha)
+    boundary_nodes = label_bdy_nodes_analytical_curve(grid_pts,\
+                                                      solid_pts, R, alpha)
     
-    distances_and_normals(boundary_nodes, R, alpha, vels, N)
+    distances_and_normals_analytical_curve(boundary_nodes, R, alpha, vels, N)
     
     list_dirs = []
     for (x0,y0), bdy_node in boundary_nodes.items():
