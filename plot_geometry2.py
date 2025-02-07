@@ -158,7 +158,7 @@ def distances_and_normals(bdy_nodes, left_bdy_pts, right_bdy_pts):
         min_pos_dist = float('inf')
         min_neg_dist = float('inf')
         
-        for idx in idxs:
+        for idx in range(len(pt_set)): #idxs:
             p = pt_set[idx]
             d = signed_distance(p, x0, unit_vec)
             
