@@ -173,15 +173,17 @@ def distances_and_normals(bdy_nodes, left_bdy_pts, right_bdy_pts):
         
         return closest_neg, closest_pos, debug_distances
         
-    pt_set = np.concatenate( [left_bdy_pts, right_bdy_pts] )
+    bdy_curve_pt_set = np.concatenate( [left_bdy_pts, right_bdy_pts] )
     
     
     for location, node_info in bdy_nodes.items():
         x_b = np.asarray( location )
         for i in range(len(node_info.velocity_vecs)):
             unit_vel_vec = node_info.velocity_vecs[i]
-            pt1, pt2, d = find_closest_points(pt_set, x_b, unit_vel_vec)  
+            pt1, pt2, d = find_closest_points(bdy_curve_pt_set,
+                                              x_b, unit_vel_vec)  
             v = pt2 - pt1
+            v = v/np.linalg.norm(v)
             
             intersection_mat = np.array([ [v[0], -unit_vel_vec[0]],
                                          [v[1], -unit_vel_vec[1]] ])
@@ -196,6 +198,9 @@ def distances_and_normals(bdy_nodes, left_bdy_pts, right_bdy_pts):
                 continue
             else:
                 node_info.distances.append(delta)
+                normal = np.array( [ -1, -v[0]/v[1] ] )
+                normal = normal/np.linalg.norm(normal)
+                node_info.normals.append( np.array( [ 1, -v[0]/v[1] ] ) )
     
     return bdy_nodes
             
