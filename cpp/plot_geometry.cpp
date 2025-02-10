@@ -123,20 +123,11 @@ std::vector<std::vector<double>> label_solid_pts(std::vector<std::vector<double>
 }
 
 
-/*
-// BoundaryNode class definition
-class BoundaryNode {
-public:
-    double x, y;
-    std::vector<Eigen::Vector2d> velocity_vecs;
-    std::vector<double> distances;
-    std::vector<Eigen::Vector2d> normals;
+std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>> grid_pts,
+    std::vector<std::vector<double>> solid_points)
+{
     
-    BoundaryNode(double x_, double y_, const std::vector<Eigen::Vector2d>& velocity_vecs_)
-        : x(x_), y(y_), velocity_vecs(velocity_vecs_) {}
-};
-*/
-
+}
 
 
 

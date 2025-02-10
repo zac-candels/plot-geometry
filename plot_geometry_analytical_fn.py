@@ -94,6 +94,7 @@ def label_bdy_points(grid_pts, solid_pts):
     dy = y_pts[1] - y_pts[0]
     bdy_pts = []
     boundary_nodes = {}
+    boundary_nodes_list = []
     eps = 1e-5
     for i in range(len(grid_pts)):
         velocity_vecs = []
@@ -119,12 +120,13 @@ def label_bdy_points(grid_pts, solid_pts):
                             
                     bdy_pt = BoundaryNode(x0, y0, velocity_vecs)
                     boundary_nodes[(x0, y0)] = bdy_pt
+                    boundary_nodes_list.append(bdy_pt)
                     break
                     
-    return boundary_nodes
+    return boundary_nodes_list
 
 
-def distances_and_normals(bdy_nodes, bdy_curve_pts):
+def distances_and_normals(boundary_nodes, bdy_curve_pts):
     
     
     
@@ -167,10 +169,10 @@ def distances_and_normals(bdy_nodes, bdy_curve_pts):
     bdy_curve_pt_set = bdy_curve_pts
     
     
-    for location, node_info in bdy_nodes.items():
-        x_b = np.asarray( location )
-        for i in range(len(node_info.velocity_vecs)):
-            unit_vel_vec = node_info.velocity_vecs[i]
+    for bdy_node in boundary_nodes:
+        x_b = np.asarray( [bdy_node.x, bdy_node.y] )
+        for i in range(len(bdy_node.velocity_vecs)):
+            unit_vel_vec = bdy_node.velocity_vecs[i]
             pt1, pt2, d = find_closest_points(bdy_curve_pt_set,
                                               x_b, unit_vel_vec)  
             v = pt2 - pt1
@@ -186,21 +188,24 @@ def distances_and_normals(bdy_nodes, bdy_curve_pts):
             
             delta = intersection_distances[1]
             if delta > 1:
-                print(location)
+                print(x_b)
                 continue
             else:
-                node_info.distances.append(delta)
+                bdy_node.distances.append(delta)
                 normal = np.array( [ -1, -v[0]/v[1] ] )
                 normal = normal/np.linalg.norm(normal)
-                node_info.normals.append( np.array( [ 1, -v[0]/v[1] ] ) )
+                bdy_node.normals.append( np.array( [ 1, -v[0]/v[1] ] ) )
     
-    return bdy_nodes
+    return boundary_nodes
             
 
 
 
 def visualize(grid_pts, bdy_curve_pts, solid_pts, bdy_nodes):
-    bdy_pts = np.asarray(list(bdy_nodes.keys()))
+    bdy_pts = []
+    for i in range(len(bdy_nodes)):
+        bdy_pts.append( [bdy_nodes[i].x, bdy_nodes[i].y] )
+    bdy_pts = np.asarray(bdy_pts)
     
     plt.figure()
     plt.scatter(grid_pts[:,0], grid_pts[:,1])
@@ -228,7 +233,7 @@ def main():
     
     bdy_nodes = label_bdy_points(grid_pts, solid_pts)
     
-    #bdy_nodes = distances_and_normals(bdy_nodes, bdy_curve_pts)
+    bdy_nodes = distances_and_normals(bdy_nodes, bdy_curve_pts)
     
     visualize(grid_pts, bdy_curve_pts, solid_pts, bdy_nodes)
     
