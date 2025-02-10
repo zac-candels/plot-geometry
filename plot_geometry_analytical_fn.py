@@ -65,13 +65,21 @@ def label_solid_pts(grid_pts, bdy_curve_pts):
                             kind='linear', fill_value="extrapolate")
     
     solid_pts_x, solid_pts_y = [], []
-    x_mesh_pts, y_mesh_pts = grid_pts[:,0], grid_pts[:,1]
-    for i in range(len(x_mesh_pts)):
-        for j in range(len(y_mesh_pts)):
-            y_curve = curve_interp(x_mesh_pts[i])
-            if y_mesh_pts[j] < y_curve:
-                solid_pts_x.append(x_mesh_pts[i])
-                solid_pts_y.append(y_mesh_pts[j])
+    # x_mesh_pts, y_mesh_pts = grid_pts[:,0], grid_pts[:,1]
+    # for i in range(len(x_mesh_pts)):
+    #     for j in range(len(y_mesh_pts)):
+    #         y_curve = curve_interp(x_mesh_pts[i])
+    #         if y_mesh_pts[j] < y_curve:
+    #             solid_pts_x.append(x_mesh_pts[i])
+    #             solid_pts_y.append(y_mesh_pts[j])
+                
+    for idx, point in enumerate(mesh_pts):
+        x_mesh_pt, y_mesh_pt = point[0], point[1]
+        y_curve = curve_interp(point[0])
+        if y_mesh_pt < y_curve:
+            solid_pts_x.append(x_mesh_pt)
+            solid_pts_y.append(y_mesh_pt)
+            grid_pts[idx,2] = 2
             
     solid_points = np.transpose( np.asarray( [ solid_pts_x, solid_pts_y ] ) )
     return solid_points
@@ -219,7 +227,7 @@ def main():
     
     bdy_nodes = label_bdy_points(grid_pts, solid_pts)
     
-    bdy_nodes = distances_and_normals(bdy_nodes, bdy_curve_pts)
+    #bdy_nodes = distances_and_normals(bdy_nodes, bdy_curve_pts)
     
     visualize(grid_pts, bdy_curve_pts, solid_pts, bdy_nodes)
     
