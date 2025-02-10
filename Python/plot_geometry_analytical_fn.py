@@ -46,7 +46,8 @@ def define_bdy_curve(alpha, R, N_bdy_pts, N_repeats, x_min, x_max):
     circular arcs, parametrized by alpha and R, with resolution
     defined by N.
     """
-    x_vals = np.linspace(x_min, x_max, N_bdy_pts)
+    eps = 0.2
+    x_vals = np.linspace(x_min - eps, x_max + eps, N_bdy_pts)
     
     y_vals = np.sin(5*np.pi*x_vals)*np.sin(5*np.pi*x_vals)
     
@@ -227,7 +228,7 @@ def main():
     
     bdy_nodes = label_bdy_points(grid_pts, solid_pts)
     
-    #bdy_nodes = distances_and_normals(bdy_nodes, bdy_curve_pts)
+    bdy_nodes = distances_and_normals(bdy_nodes, bdy_curve_pts)
     
     visualize(grid_pts, bdy_curve_pts, solid_pts, bdy_nodes)
     
