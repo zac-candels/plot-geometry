@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import KDTree
+from scipy.interpolate import interp1d
 from shapely.geometry import Point, Polygon
 
 # This program does several things.
@@ -24,24 +25,6 @@ class BoundaryNode:
         self.velocity_vecs = velocity_vecs
         self.distances = []
         self.normals = []
-
-
-def bdy_fn_left(x, N_repeats, alpha, R):
-    x = np.asarray(x)
-    x = x[ (x < R - N_repeats - alpha) & (x > -N_repeats - alpha*1/2)]
-    y = np.sqrt(R**2 - (x + alpha + N_repeats)**2)
-    left_bdy_pts = np.transpose(np.array([x, y]))
-    return left_bdy_pts
-    
-        
-    
-def bdy_fn_right(x, N_repeats, alpha, R):
-    x = np.asarray(x)
-    
-    x = x[(x > - N_repeats - alpha*1/2) & (x < R - N_repeats)]
-    y = np.sqrt(R**2 - (x + N_repeats)**2)
-    right_bdy_pts = np.transpose(np.array([x, y]))
-    return right_bdy_pts
     
 
 def make_grid(x_min, x_max, y_min, y_max, n_grid_pts):
@@ -65,33 +48,32 @@ def define_bdy_curve(alpha, R, N_bdy_pts, N_repeats, x_min, x_max):
     """
     x_vals = np.linspace(x_min, x_max, N_bdy_pts)
     
-    left_bdy = bdy_fn_left(x_vals, N_repeats, alpha, R)
-    right_bdy = bdy_fn_right(x_vals, N_repeats, alpha, R)
+    y_vals = np.sin(5*np.pi*x_vals)*np.sin(5*np.pi*x_vals)
     
-    return left_bdy, right_bdy
+    bdy_curve_pts = np.transpose( [x_vals, y_vals] )
+    
+    return bdy_curve_pts, x_vals
 
 
-def label_solid_pts(grid_pts, left_bdy_pts, right_bdy_pts):
+def label_solid_pts(grid_pts, bdy_curve_pts):
     
     mesh_pts = [tuple(row) for row in grid_pts[:,0:2]]
-    right_bdy_pts = [tuple(row) for row in right_bdy_pts]
-    left_bdy_pts = [tuple(row) for row in left_bdy_pts]
-    
-    bdy_shape_pts = left_bdy_pts + right_bdy_pts
-    
-    bdy_shape_polygon = Polygon(bdy_shape_pts)
 
-    # Label points inside the crescent moon
-    solid_points = []
-    pts_x, pts_y = [], []
-    for idx, point in enumerate(mesh_pts):
-        if bdy_shape_polygon.contains(Point(point)):
-            pts_x.append(point[0])
-            pts_y.append(point[1])
+    # Label points below bdy curve
+    
+    curve_interp = interp1d(bdy_curve_pts[:,0], bdy_curve_pts[:,1],
+                            kind='linear', fill_value="extrapolate")
+    
+    solid_pts_x, solid_pts_y = [], []
+    x_mesh_pts, y_mesh_pts = grid_pts[:,0], grid_pts[:,1]
+    for i in range(len(x_mesh_pts)):
+        for j in range(len(y_mesh_pts)):
+            y_curve = curve_interp(x_mesh_pts[i])
+            if y_mesh_pts[j] < y_curve:
+                solid_pts_x.append(x_mesh_pts[i])
+                solid_pts_y.append(y_mesh_pts[j])
             
-            solid_points.append(point)
-            grid_pts[idx,2] = 2
-    solid_points = np.transpose( np.asarray( [ pts_x, pts_y ] ) )
+    solid_points = np.transpose( np.asarray( [ solid_pts_x, solid_pts_y ] ) )
     return solid_points
 
 
@@ -133,7 +115,7 @@ def label_bdy_points(grid_pts, solid_pts):
     return boundary_nodes
 
 
-def distances_and_normals(bdy_nodes, left_bdy_pts, right_bdy_pts):
+def distances_and_normals(bdy_nodes, bdy_curve_pts):
     
     
     
@@ -173,7 +155,7 @@ def distances_and_normals(bdy_nodes, left_bdy_pts, right_bdy_pts):
         
         return closest_neg, closest_pos, debug_distances
         
-    bdy_curve_pt_set = np.concatenate( [left_bdy_pts, right_bdy_pts] )
+    bdy_curve_pt_set = bdy_curve_pts
     
     
     for location, node_info in bdy_nodes.items():
@@ -208,14 +190,13 @@ def distances_and_normals(bdy_nodes, left_bdy_pts, right_bdy_pts):
 
 
 
-def visualize(grid_pts, left_bdy_pts, right_bdy_pts, solid_pts, bdy_nodes):
+def visualize(grid_pts, bdy_curve_pts, solid_pts, bdy_nodes):
     bdy_pts = np.asarray(list(bdy_nodes.keys()))
     
     plt.figure()
     plt.scatter(grid_pts[:,0], grid_pts[:,1])
-    plt.plot(left_bdy_pts[:,0], left_bdy_pts[:,1])
-    plt.plot(right_bdy_pts[:,0], right_bdy_pts[:,1])
-    plt.scatter(solid_pts[:,0], solid_pts[:,1], color="red")
+    plt.plot(bdy_curve_pts[:,0], bdy_curve_pts[:,1])
+    plt.scatter(solid_pts[:,0], solid_pts[:,1], marker="x", color="red")
     plt.scatter(bdy_pts[:,0], bdy_pts[:,1], color="green")
     
 
@@ -231,19 +212,16 @@ def main():
     
     grid_pts = make_grid(x_min, x_max, y_min, y_max, n_grid_pts)
     
-    left_bdy_curve_pts, right_bdy_curve_pts = define_bdy_curve(alpha, R,
+    bdy_curve_pts, x_vals = define_bdy_curve(alpha, R,
                                            N_bdy_pts, N_repeats, x_min, x_max)
     
-    solid_pts = label_solid_pts(grid_pts, left_bdy_curve_pts,
-                                right_bdy_curve_pts)
+    solid_pts = label_solid_pts(grid_pts, bdy_curve_pts)
     
     bdy_nodes = label_bdy_points(grid_pts, solid_pts)
     
-    bdy_nodes = distances_and_normals(bdy_nodes,\
-                                      left_bdy_curve_pts, right_bdy_curve_pts)
+    bdy_nodes = distances_and_normals(bdy_nodes, bdy_curve_pts)
     
-    visualize(grid_pts, left_bdy_curve_pts,
-              right_bdy_curve_pts, solid_pts, bdy_nodes)
+    visualize(grid_pts, bdy_curve_pts, solid_pts, bdy_nodes)
     
     return 
     
