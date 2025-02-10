@@ -1,11 +1,26 @@
 #include <iostream>
 #include <vector>
+#include <numeric>
 #include <array>
 #include <cmath>
 #include <algorithm>
 #include </home/zcandels/num_analysis_packages/eigen-3.4.0/Eigen/Dense>
 #include <unordered_map>
+#include <valarray>
 #include "boundarynode.hpp"
+
+double signed_distance(std::valarray<double> P, std::valarray<double> x0, std::valarray<double> u)
+{
+    std::valarray<double> v_perp = { -u[1], u[0] };
+    std::valarray<double> dist_vec = P - x0;
+
+    //std::vector<double> P(std::begin(P), std::end())
+    double dot_prod = std::inner_product( std::begin(dist_vec), std::end(dist_vec), std::begin(v_perp), 0);
+
+    return dot_prod;
+
+}
+
 
 template<typename T>
 std::vector<double> linspace(T start_in, T end_in, int num_in)
@@ -33,6 +48,20 @@ std::vector<double> linspace(T start_in, T end_in, int num_in)
   linspaced.push_back(end); // I want to ensure that start and end
                             // are exactly the same as the input
   return linspaced;
+}
+
+template<typename T>
+double vector_norm(T vec)
+{
+    double norm = 0;
+    for (int i = 0; i < vec.size(); i++)
+    {
+        norm = norm + pow( vec[i], 2.0 );
+    }
+
+    norm = pow( norm, 0.5 );
+    
+    return norm;
 }
 
 // End of the BoundaryNode class. Now we can move on to the other functions.
@@ -126,9 +155,82 @@ std::vector<std::vector<double>> label_solid_pts(std::vector<std::vector<double>
 std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>> grid_pts,
     std::vector<std::vector<double>> solid_points)
 {
-    
+    std::vector<double> x_pts;
+    std::vector<double> y_pts;
+    std::vector<BoundaryNode> boundary_nodes;
+    double eps = 1e-5;
+
+    for (int i = 0; i < grid_pts.size(); i++)
+    {
+        x_pts.push_back( grid_pts[i][0] );
+        y_pts.push_back( grid_pts[i][1] );
+    }
+    double dx = x_pts[1] - x_pts[0];
+    double dy = y_pts[1] - y_pts[0];
+
+    for (int i = 0; i < grid_pts.size(); i++)
+    {
+        std::vector< std::valarray<double> > velocity_vecs;
+        if ( grid_pts[i][2] == 2)
+        {
+            continue; // If you encounter a solid point, move to next iteration of loop
+        }
+        
+        //Eigen::VectorXd P(2); 
+        //P << grid_pts[i][0], grid_pts[i][1];
+
+        std::valarray<double> P = {grid_pts[i][0], grid_pts[i][1]};
+
+        for (int j = 0; j < solid_points.size(); j++)
+        {
+            //Eigen::VectorXd Q(2);
+            //Q << solid_points[j][0], solid_points[j][1];
+
+            std::valarray<double> Q = {solid_points[j][0], solid_points[j][0]};
+
+            if (vector_norm( Q - P) <=  sqrt(2.0)*std::max(dx, dy) + eps)
+            {
+                std::valarray<double> vel_vec = (Q - P)/vector_norm(Q - P);
+                // velocity_vecs.push_back( (Q - P)/vector_norm(Q - P) );
+                grid_pts[i][2] = 1;
+                double x0 = grid_pts[i][0];
+                double y0 = grid_pts[i][1];
+                BoundaryNode x_b = BoundaryNode(x0, y0);
+                x_b.add_velocity_vec( vel_vec );
+
+                for(int k = 0; k < solid_points.size(); k++)
+                {
+                    if(k == j)
+                    {continue;}
+                    std::valarray<double> Q = { solid_points[k][0], solid_points[k][1] };
+                    if(vector_norm( Q - P ) <= std::sqrt(2)*std::max(dx, dy) + eps)
+                    {
+                        x_b.add_velocity_vec( (Q - P)/vector_norm(Q - P));
+                    }
+
+                }
+
+                boundary_nodes.push_back(x_b);
+
+
+            }
+
+
+        } 
+
+    }
+
+    return boundary_nodes;
+
 }
 
+
+void distances_and_normals(std::vector<BoundaryNode> boundary_nodes, 
+    std::vector< std::array<double, 2> > bdy_curve_pts)
+{
+
+
+}
 
 
 int main()
@@ -146,14 +248,6 @@ int main()
     double x = 1.8;
     double y = -3.5;
     std::vector< std::array<double, 2> > vel_dirs = { {2.3, -1.3}, {4.5, 0.1} };
-    BoundaryNode x_b = BoundaryNode(2.3, 4.5, vel_dirs);
-
-    std::array<double, 2> x_p = x_b.getPosition();
-
-    std::vector<std::array<double, 2> > c_q = x_b.getVelDirections();
-
-
-
     //std::cout << c_q[0][0] << ", " << c_q[0][1] << std::endl;
 
 
@@ -163,6 +257,10 @@ int main()
 
 
     std::vector<std::vector<double>> solid_points = label_solid_pts(grid_pts, bdy_curve_pts);
+
+    std::vector<BoundaryNode> boundary_nodes = label_bdy_points(grid_pts, solid_points);
+
+    distances_and_normals(boundary_nodes, bdy_curve_pts);
 
 
 
