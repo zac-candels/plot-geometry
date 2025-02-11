@@ -26,6 +26,38 @@ double signed_distance(Eigen::Vector2d P, Eigen::Vector2d x0, Eigen::Vector2d u)
 
 }
 
+std::vector<Eigen::Vector2d> find_closest_points(std::vector< Eigen::Vector2d > bdy_curve_pts, Eigen::Vector2d x0, Eigen::Vector2d unit_vec)
+{
+    double min_pos_dist = 100.;
+    double min_neg_dist = 100.;
+
+    Eigen::Vector2d closest_pos;
+    Eigen::Vector2d closest_neg;
+    std::vector<Eigen::Vector2d> closest_pts;
+
+    for(int idx = 0; idx < bdy_curve_pts.size(); idx++)
+    {
+        Eigen::Vector2d point = bdy_curve_pts[idx];
+        double dist = signed_distance(point, x0, unit_vec);
+
+        if( dist > 0 && dist < min_pos_dist)
+        {
+            Eigen::Vector2d closest_pos = point;
+            double min_pos_dist = dist;
+        }
+        else if (dist < 0 && std::abs(dist) < min_neg_dist)
+        {
+            Eigen::Vector2d closest_neg = point;
+            double min_neg_dist = std::abs(dist);
+        }
+
+    }
+    closest_pts.push_back(closest_neg);
+    closest_pts.push_back(closest_pos);
+
+    return closest_pts;
+}
+
 
 template<typename T>
 std::vector<double> linspace(T start_in, T end_in, int num_in)
@@ -120,7 +152,8 @@ std::vector< Eigen::Vector2d > define_bdy_curve(int N_bdy_pts, double x_min, dou
 
 
 std::vector<std::vector<double>> label_solid_pts(std::vector<std::vector<double>>& grid_pts, 
-                                                 const std::vector< Eigen::Vector2d >& bdy_curve_pts) {
+                                                 const std::vector< Eigen::Vector2d >& bdy_curve_pts) 
+{
     std::vector<std::vector<double>> solid_points;
 
     // Linear interpolation using Eigen
@@ -157,8 +190,8 @@ std::vector<std::vector<double>> label_solid_pts(std::vector<std::vector<double>
 }
 
 
-std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>> grid_pts,
-    std::vector<std::vector<double>> solid_points)
+std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>>& grid_pts,
+    const std::vector<std::vector<double>>& solid_points)
 {
     std::vector<double> x_pts;
     std::vector<double> y_pts;
@@ -192,8 +225,7 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>> grid
             //Eigen::VectorXd Q(2);
             //Q << solid_points[j][0], solid_points[j][1];
 
-            Eigen::Vector2d Q(2);
-            Q << solid_points[j][0], solid_points[j][0];
+            Eigen::Vector2d Q(solid_points[j][0], solid_points[j][0]);
 
             Eigen::Vector2d Z(2);
             Z = Q - P;
@@ -235,6 +267,89 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>> grid
 
 }
 
+void distances_and_normals(std::vector<BoundaryNode>& boundary_nodes, std::vector< Eigen::Vector2d >& bdy_curve_pts)
+{
+    for(int j = 0; j < boundary_nodes.size(); j++)
+    {
+        Eigen::Vector2d x_b = boundary_nodes[j].getPosition();
+
+        std::vector< Eigen::Vector2d > velocity_vecs = boundary_nodes[j].getVelDirections();
+
+        for(int i = 0; i < velocity_vecs.size(); i++)
+        {
+            Eigen::Vector2d unit_vel_vec = boundary_nodes[j].getVelDirections()[i];
+            std::vector<Eigen::Vector2d> closest_pts = find_closest_points(bdy_curve_pts, x_b, unit_vel_vec);
+            Eigen::Vector2d pt1 = closest_pts[0];
+            Eigen::Vector2d v = closest_pts[1] - closest_pts[0];
+            v = v/v.norm();
+
+            Eigen::Matrix2d intersection_mat;
+            intersection_mat << v[0], -unit_vel_vec[0],
+                                v[1], -unit_vel_vec[1];
+
+            Eigen::Vector2d intersection_rhs_vec;
+            intersection_rhs_vec << x_b[0] - pt1[0], x_b[1] - pt1[1];
+
+            Eigen::Vector2d intersection_distances = intersection_mat.colPivHouseholderQr().solve(intersection_rhs_vec);
+
+            double delta = intersection_distances[1];
+
+            if( delta > 1)
+                continue;
+            else
+            {
+                boundary_nodes[j].setDistance(delta);
+                Eigen::Vector2d normal_vec(-1, -v[0]/v[1]);
+                normal_vec = normal_vec/normal_vec.norm();
+                boundary_nodes[j].setNormals(normal_vec);
+            }
+
+        }
+
+    }
+}
+
+void write_data(std::vector<std::vector<double>>& grid_pts, std::vector< Eigen::Vector2d >& bdy_curve_pts,
+    std::vector<std::vector<double>>& solid_points, std::vector<BoundaryNode>& boundary_nodes )
+{
+    const int width = 10;
+    const int precision = 5;
+
+    FILE* outfile1 = fopen("boundary_pts.dat", "w");
+    std::vector<std::vector<double>> boundary_node_positions;
+    for(int i = 0; i < boundary_nodes.size(); i++)
+    {
+        Eigen::Vector2d x_b = boundary_nodes[i].getPosition();
+        fprintf(outfile1, "%*.*f, %*.*f\n", width, precision, x_b[0], width, precision, x_b[1]);
+
+    }
+    fclose(outfile1);
+
+    FILE* outfile2 = fopen("solid_pts.dat", "w");
+    for(int i = 0; i < solid_points.size(); i++)
+    {
+        std::vector<double> x_s = solid_points[i];
+        fprintf(outfile2, "%*.*f, %*.*f\n", width, precision, x_s[0], width, precision, x_s[1]);
+    }
+    fclose(outfile2);
+
+    FILE* outfile3 = fopen("bdy_curve_pts.dat", "w");
+    for(int i = 0; i < bdy_curve_pts.size(); i++)
+    {
+        Eigen::Vector2d x_c = bdy_curve_pts[i];
+        fprintf(outfile2, "%*.*f, %*.*f\n", width, precision, x_c[0], width, precision, x_c[1]);
+    }
+    fclose(outfile3);
+
+    FILE* outfile4 = fopen("grid_pts.dat", "w");
+    for(int i = 0; i < grid_pts.size(); i++)
+    {
+        std::vector<double> x_h = grid_pts[i];
+        fprintf(outfile2, "%*.*f, %*.*f\n", width, precision, x_h[0], width, precision, x_h[1]);
+    }
+    fclose(outfile4);
+}
+
 
 
 int main()
@@ -259,10 +374,13 @@ int main()
 
     std::vector< Eigen::Vector2d > bdy_curve_pts = define_bdy_curve(N_bdy_pts, x_min, x_max);
 
-
     std::vector<std::vector<double>> solid_points = label_solid_pts(grid_pts, bdy_curve_pts);
 
     std::vector<BoundaryNode> boundary_nodes = label_bdy_points(grid_pts, solid_points);
+
+    distances_and_normals(boundary_nodes, bdy_curve_pts);
+
+    write_data(grid_pts, bdy_curve_pts, solid_points, boundary_nodes );
 
 
 }

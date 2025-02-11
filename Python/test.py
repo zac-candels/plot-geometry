@@ -93,8 +93,6 @@ def label_bdy_points(grid_pts, solid_pts):
     
     y_pts = np.unique(grid_pts[:,1])
     dy = y_pts[1] - y_pts[0]
-    
-    dxy = np.max([dx,dy])
     bdy_pts = []
     boundary_nodes = {}
     boundary_nodes_list = []
@@ -107,10 +105,8 @@ def label_bdy_points(grid_pts, solid_pts):
             P = np.array([ grid_pts[i,0], grid_pts[i,1] ])
             for j in range(len(solid_pts)):
                 Q = np.array([ solid_pts[j,0], solid_pts[j,1] ])
-                displacement_vec = Q - P
-                disp_vec_norm = np.linalg.norm(displacement_vec)
-                if disp_vec_norm <= np.sqrt(2)*dxy + eps:
-                    velocity_vecs.append( (Q - P)/disp_vec_norm )
+                if np.linalg.norm(Q-P) <= np.sqrt(2)*np.max([dx,dy]) + eps:
+                    velocity_vecs.append( (Q - P)/np.linalg.norm(Q-P) )
                     grid_pts[i,2] = 1
                     x0, y0 = grid_pts[i,0], grid_pts[i,1]
                     bdy_pts.append( [ x0, y0 ] )
@@ -142,36 +138,43 @@ def distances_and_normals(boundary_nodes, bdy_curve_pts):
     
     
     
-    def find_closest_points(pt_set, x0, unit_vec, k=10):
+    def find_closest_points(E, x0, u, k=10, max_k=20):
+        """Find the closest points in E on either side of the line x0 + t*u."""
+        tree = KDTree(E)
         
         closest_pos = None
         closest_neg = None
         min_pos_dist = float('inf')
         min_neg_dist = float('inf')
         
-        for idx in range(len(pt_set)): #idxs:
-            p = pt_set[idx]
-            d = signed_distance(p, x0, unit_vec)
+        while (closest_pos is None or closest_neg is None) and k <= max_k:
+            _, idxs = tree.query(x0, k=min(k, len(E)))  # Ensure k is within bounds
+    
+            for idx in idxs:
+                p = E[idx]
+                d = signed_distance(p, x0, u)
+    
+                if d > 0 and d < min_pos_dist:
+                    closest_pos = p
+                    min_pos_dist = d
+                elif d < 0 and abs(d) < min_neg_dist:
+                    closest_neg = p
+                    min_neg_dist = abs(d)
             
-            #debug_distances.append(d)
-            
-            if d > 0 and d < min_pos_dist:
-                closest_pos = p
-                min_pos_dist = d
-            elif d < 0 and abs(d) < min_neg_dist:
-                closest_neg = p
-                min_neg_dist = abs(d)
-                
-        
+            k *= 2  # Increase k exponentially if needed
+
         return closest_neg, closest_pos
+
+
         
+    bdy_curve_pt_set = bdy_curve_pts
     
     
     for bdy_node in boundary_nodes:
         x_b = np.asarray( [bdy_node.x, bdy_node.y] )
         for i in range(len(bdy_node.velocity_vecs)):
             unit_vel_vec = bdy_node.velocity_vecs[i]
-            pt1, pt2 = find_closest_points(bdy_curve_pts,
+            pt1, pt2 = find_closest_points(bdy_curve_pt_set,
                                               x_b, unit_vel_vec)  
             v = pt2 - pt1
             v = v/np.linalg.norm(v)
@@ -186,7 +189,7 @@ def distances_and_normals(boundary_nodes, bdy_curve_pts):
             
             delta = intersection_distances[1]
             if delta > 1:
-                #print(x_b)
+                print(x_b)
                 continue
             else:
                 bdy_node.distances.append(delta)
@@ -219,7 +222,7 @@ def main():
     R = 1
     N_bdy_pts = 3200
     N_repeats = 1
-    n_grid_pts = 10
+    n_grid_pts = 100
     x_min, x_max = -2, 2
     y_min, y_max = 0, 4
     
