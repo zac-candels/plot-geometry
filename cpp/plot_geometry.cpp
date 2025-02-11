@@ -135,14 +135,14 @@ std::vector<std::vector<double>> make_grid(double x_min, double x_max, double y_
 std::vector< Eigen::Vector2d > define_bdy_curve(int N_bdy_pts, double x_min, double x_max)
 {
     double eps = 0.2;
-    std::vector<double> x_vals = linspace(x_min, x_max, N_bdy_pts);
+    std::vector<double> x_vals = linspace(x_min - eps, x_max +eps, N_bdy_pts);
     std::vector<double> y_vals;
 
     std::vector< Eigen::Vector2d > bdy_curve_pts;
 
     for (int i = 0; i < N_bdy_pts; i++)
     {
-        y_vals.push_back( pow(sin(5 * M_PI * x_vals[i]), 2) );
+        y_vals.push_back( pow(sin(5 * M_PI * x_vals[i]), 2.) );
         bdy_curve_pts.push_back( { x_vals[i], y_vals[i] } );
 
     }
@@ -225,7 +225,7 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>>& gri
             //Eigen::VectorXd Q(2);
             //Q << solid_points[j][0], solid_points[j][1];
 
-            Eigen::Vector2d Q(solid_points[j][0], solid_points[j][0]);
+            Eigen::Vector2d Q(solid_points[j][0], solid_points[j][1]);
 
             Eigen::Vector2d Z(2);
             Z = Q - P;
@@ -236,8 +236,8 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>>& gri
                 vel_vec = (Z)/Z.norm();
                 // velocity_vecs.push_back( (Q - P)/vector_norm(Q - P) );
                 grid_pts[i][2] = 1;
-                double x0 = grid_pts[i][0];
-                double y0 = grid_pts[i][1];
+                double x0 = P[0];
+                double y0 = P[1];
                 BoundaryNode x_b = BoundaryNode(x0, y0);
                 x_b.add_velocity_vec( vel_vec );
 
@@ -245,10 +245,11 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>>& gri
                 {
                     if(k == j)
                     {continue;}
-                    std::valarray<double> Q = { solid_points[k][0], solid_points[k][1] };
-                    if(Z.norm() <= std::sqrt(2)*std::max(dx, dy) + eps)
+                    Eigen::Vector2d Q(solid_points[k][0], solid_points[k][1]);
+                
+                    if((Q - P).norm() <= std::sqrt(2)*std::max(dx, dy) + eps)
                     {
-                        x_b.add_velocity_vec( Z /Z.norm());
+                        x_b.add_velocity_vec( Q-P /(Q-P).norm());
                     }
 
                 }
@@ -363,11 +364,6 @@ int main()
     double x_max = 2;
     double y_min = 0;
     double y_max = 4;
-
-    double x = 1.8;
-    double y = -3.5;
-    std::vector< std::array<double, 2> > vel_dirs = { {2.3, -1.3}, {4.5, 0.1} };
-    //std::cout << c_q[0][0] << ", " << c_q[0][1] << std::endl;
 
 
     std::vector<std::vector<double>> grid_pts = make_grid(x_min, x_max, y_min, y_max, n_grid_pts);

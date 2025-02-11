@@ -232,7 +232,7 @@ def main():
     
     bdy_nodes = label_bdy_points(grid_pts, solid_pts)
     
-    bdy_nodes = distances_and_normals(bdy_nodes, bdy_curve_pts)
+#    bdy_nodes = distances_and_normals(bdy_nodes, bdy_curve_pts)
     
     visualize(grid_pts, bdy_curve_pts, solid_pts, bdy_nodes)
     
