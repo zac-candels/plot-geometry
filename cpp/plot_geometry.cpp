@@ -1,22 +1,26 @@
 #include <iostream>
 #include <vector>
-#include <numeric>
+#include <numeric> 
 #include <array>
 #include <cmath>
+#include <map>
 #include <algorithm>
 #include </home/zcandels/num_analysis_packages/eigen-3.4.0/Eigen/Dense>
 #include "/home/zcandels/num_analysis_packages/nanoflann/include/nanoflann.hpp"
 #include <unordered_map>
 #include <valarray>
-#include "boundarynode.hpp"
+#include "/home/zcandels/geom/cpp/boundarynode.hpp"
 
-double signed_distance(std::valarray<double> P, std::valarray<double> x0, std::valarray<double> u)
+
+
+double signed_distance(Eigen::Vector2d P, Eigen::Vector2d x0, Eigen::Vector2d u)
 {
-    std::valarray<double> v_perp = { -u[1], u[0] };
-    std::valarray<double> dist_vec = P - x0;
+    Eigen::Vector2d v_perp(2);
+    v_perp << -u[1], u[0];
+    Eigen::Vector2d dist_vec = P - x0;
 
     //std::vector<double> P(std::begin(P), std::end())
-    double dot_prod = std::inner_product( std::begin(dist_vec), std::end(dist_vec), std::begin(v_perp), 0);
+    double dot_prod = dist_vec.dot(v_perp);
 
     return dot_prod;
 
@@ -96,13 +100,13 @@ std::vector<std::vector<double>> make_grid(double x_min, double x_max, double y_
 }
 
 
-std::vector< std::array<double, 2> > define_bdy_curve(int N_bdy_pts, double x_min, double x_max)
+std::vector< Eigen::Vector2d > define_bdy_curve(int N_bdy_pts, double x_min, double x_max)
 {
     double eps = 0.2;
     std::vector<double> x_vals = linspace(x_min, x_max, N_bdy_pts);
     std::vector<double> y_vals;
 
-    std::vector< std::array<double, 2> > bdy_curve_pts;
+    std::vector< Eigen::Vector2d > bdy_curve_pts;
 
     for (int i = 0; i < N_bdy_pts; i++)
     {
@@ -116,7 +120,7 @@ std::vector< std::array<double, 2> > define_bdy_curve(int N_bdy_pts, double x_mi
 
 
 std::vector<std::vector<double>> label_solid_pts(std::vector<std::vector<double>>& grid_pts, 
-                                                 const std::vector< std::array<double, 2> >& bdy_curve_pts) {
+                                                 const std::vector< Eigen::Vector2d >& bdy_curve_pts) {
     std::vector<std::vector<double>> solid_points;
 
     // Linear interpolation using Eigen
@@ -180,18 +184,24 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>> grid
         //Eigen::VectorXd P(2); 
         //P << grid_pts[i][0], grid_pts[i][1];
 
-        std::valarray<double> P = {grid_pts[i][0], grid_pts[i][1]};
+        Eigen::Vector2d P(2);
+        P << grid_pts[i][0], grid_pts[i][1];
 
         for (int j = 0; j < solid_points.size(); j++)
         {
             //Eigen::VectorXd Q(2);
             //Q << solid_points[j][0], solid_points[j][1];
 
-            std::valarray<double> Q = {solid_points[j][0], solid_points[j][0]};
+            Eigen::Vector2d Q(2);
+            Q << solid_points[j][0], solid_points[j][0];
 
-            if (vector_norm( Q - P) <=  sqrt(2.0)*std::max(dx, dy) + eps)
+            Eigen::Vector2d Z(2);
+            Z = Q - P;
+
+            if (Z.norm() <=  sqrt(2.0)*std::max(dx, dy) + eps)
             {
-                std::valarray<double> vel_vec = (Q - P)/vector_norm(Q - P);
+                Eigen::Vector2d vel_vec(2);
+                vel_vec = (Z)/Z.norm();
                 // velocity_vecs.push_back( (Q - P)/vector_norm(Q - P) );
                 grid_pts[i][2] = 1;
                 double x0 = grid_pts[i][0];
@@ -204,9 +214,9 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>> grid
                     if(k == j)
                     {continue;}
                     std::valarray<double> Q = { solid_points[k][0], solid_points[k][1] };
-                    if(vector_norm( Q - P ) <= std::sqrt(2)*std::max(dx, dy) + eps)
+                    if(Z.norm() <= std::sqrt(2)*std::max(dx, dy) + eps)
                     {
-                        x_b.add_velocity_vec( (Q - P)/vector_norm(Q - P));
+                        x_b.add_velocity_vec( Z /Z.norm());
                     }
 
                 }
@@ -225,13 +235,6 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>> grid
 
 }
 
-
-void distances_and_normals(std::vector<BoundaryNode> boundary_nodes, 
-    std::vector< std::array<double, 2> > bdy_curve_pts)
-{
-
-
-}
 
 
 int main()
@@ -254,15 +257,12 @@ int main()
 
     std::vector<std::vector<double>> grid_pts = make_grid(x_min, x_max, y_min, y_max, n_grid_pts);
 
-    std::vector< std::array<double, 2> > bdy_curve_pts = define_bdy_curve(N_bdy_pts, x_min, x_max);
+    std::vector< Eigen::Vector2d > bdy_curve_pts = define_bdy_curve(N_bdy_pts, x_min, x_max);
 
 
     std::vector<std::vector<double>> solid_points = label_solid_pts(grid_pts, bdy_curve_pts);
 
     std::vector<BoundaryNode> boundary_nodes = label_bdy_points(grid_pts, solid_points);
-
-    distances_and_normals(boundary_nodes, bdy_curve_pts);
-
 
 
 }

@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <valarray>
+#include </home/zcandels/num_analysis_packages/eigen-3.4.0/Eigen/Dense>
 
 
 class BoundaryNode
@@ -12,22 +13,22 @@ class BoundaryNode
 private:
     double x_position;
     double y_position;
-    std::vector< std::valarray<double> > velocity_vecs;
+    std::vector< Eigen::Vector2d > velocity_vecs;
     std::vector<double> distances;
-    std::vector< std::array<double, 2> > normals;
+    std::vector< Eigen::Vector2d > normals;
 
 public:
     BoundaryNode();
     BoundaryNode(double x, double y);
 
     void setDistance(double dist);
-    void setNormals(std::array<double,2> normal);
-    void add_velocity_vec(std::valarray<double> vel_vec);
+    void setNormals(Eigen::Vector2d normal);
+    void add_velocity_vec(Eigen::Vector2d vel_vec);
 
-    std::array<double, 2> getPosition();
+    Eigen::Vector2d getPosition();
     std::vector<double> getDistances();
-    std::vector< std::array<double, 2> > getNormals();
-    std::vector< std::valarray<double> > getVelDirections();
+    std::vector< Eigen::Vector2d > getNormals();
+    std::vector< Eigen::Vector2d > getVelDirections();
     
 
 };
@@ -45,27 +46,27 @@ void BoundaryNode::setDistance(double dist)
     distances.push_back(dist);
 }
 
-void BoundaryNode::setNormals(std::array<double, 2> normal)
+void BoundaryNode::setNormals(Eigen::Vector2d normal)
 {
     normals.push_back(normal);
 }
 
-void BoundaryNode::add_velocity_vec(std::valarray<double> vel_vec)
+void BoundaryNode::add_velocity_vec(Eigen::Vector2d vel_vec)
 {
     velocity_vecs.push_back( vel_vec );
 }
 
-std::array<double, 2> BoundaryNode::getPosition()
+Eigen::Vector2d BoundaryNode::getPosition()
 {
     return {x_position, y_position};
 }
 
-std::vector< std::array<double, 2> > BoundaryNode::getNormals()
+std::vector< Eigen::Vector2d > BoundaryNode::getNormals()
 {
     return normals;
 }
 
-std::vector< std::valarray<double> > BoundaryNode::getVelDirections()
+std::vector< Eigen::Vector2d > BoundaryNode::getVelDirections()
 {
     return velocity_vecs;
 }
