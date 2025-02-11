@@ -5,6 +5,7 @@
 #include <cmath>
 #include <algorithm>
 #include </home/zcandels/num_analysis_packages/eigen-3.4.0/Eigen/Dense>
+#include "/home/zcandels/num_analysis_packages/nanoflann/include/nanoflann.hpp"
 #include <unordered_map>
 #include <valarray>
 #include "boundarynode.hpp"
