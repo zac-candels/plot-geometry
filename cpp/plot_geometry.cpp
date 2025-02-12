@@ -348,11 +348,11 @@ int main()
     double y_max = 4;
 
 
-    std::vector<std::vector<double>> grid_pts = make_grid(x_min, x_max, y_min, y_max, n_grid_pts);
+    std::vector<std::vector<double>> grid_pts = make_grid(x_min, x_max, y_min, y_max, n_grid_pts); // Won't need this, grid points comes from LBM code.
 
     std::vector< Eigen::Vector2d > bdy_curve_pts = define_bdy_curve(N_bdy_pts, x_min, x_max);
 
-    std::vector<std::vector<double>> solid_points = label_solid_pts(grid_pts, bdy_curve_pts);
+    std::vector<std::vector<double>> solid_points = label_solid_pts(grid_pts, bdy_curve_pts); // Will need this. 
 
     std::vector<BdyNode> boundary_nodes = label_bdy_points(grid_pts, solid_points);
 
