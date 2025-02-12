@@ -12,6 +12,16 @@
 #include "/home/zcandels/geom/cpp/boundarynode.hpp"
 #include <time.h>
 
+struct BdyNode
+{
+    double x_position;
+    double y_position;
+    Eigen::Vector2d Position;
+    std::vector< Eigen::Vector2d > velocity_vecs;
+    std::vector<double> distances;
+    std::vector< Eigen::Vector2d > normals;
+    Eigen::MatrixXd matrix;
+};
 
 
 double signed_distance(Eigen::Vector2d P, Eigen::Vector2d x0, Eigen::Vector2d u)
@@ -60,33 +70,6 @@ std::vector<Eigen::Vector2d> find_closest_points(std::vector< Eigen::Vector2d > 
 }
 
 
-template<typename T>
-std::vector<double> linspace(T start_in, T end_in, int num_in)
-{
-
-  std::vector<double> linspaced;
-
-  double start = static_cast<double>(start_in);
-  double end = static_cast<double>(end_in);
-  double num = static_cast<double>(num_in);
-
-  if (num == 0) { return linspaced; }
-  if (num == 1) 
-    {
-      linspaced.push_back(start);
-      return linspaced;
-    }
-
-  double delta = (end - start) / (num - 1);
-
-  for(int i=0; i < num-1; ++i)
-    {
-      linspaced.push_back(start + delta * i);
-    }
-  linspaced.push_back(end); // I want to ensure that start and end
-                            // are exactly the same as the input
-  return linspaced;
-}
 
 // End of the BoundaryNode class. Now we can move on to the other functions.
 
@@ -117,14 +100,14 @@ std::vector<std::vector<double>> make_grid(double x_min, double x_max, double y_
 std::vector< Eigen::Vector2d > define_bdy_curve(int N_bdy_pts, double x_min, double x_max)
 {
     double eps = 0.2;
-    std::vector<double> x_vals = linspace(x_min - eps, x_max +eps, N_bdy_pts);
-    std::vector<double> y_vals;
+    Eigen::VectorXd x_vals = Eigen::VectorXd::LinSpaced(N_bdy_pts, x_min - eps, x_max +eps);
+    Eigen::VectorXd y_vals(N_bdy_pts);
 
     std::vector< Eigen::Vector2d > bdy_curve_pts;
 
     for (int i = 0; i < N_bdy_pts; i++)
     {
-        y_vals.push_back( pow(sin(5 * M_PI * x_vals[i]), 2.) );
+        y_vals[i] = ( pow(sin(5 * M_PI * x_vals[i]), 2.) );
         bdy_curve_pts.push_back( { x_vals[i], y_vals[i] } );
 
     }
@@ -172,12 +155,12 @@ std::vector<std::vector<double>> label_solid_pts(std::vector<std::vector<double>
 }
 
 
-std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>>& grid_pts,
+std::vector<BdyNode> label_bdy_points(std::vector<std::vector<double>>& grid_pts,
     const std::vector<std::vector<double>>& solid_points)
 {
     std::vector<double> x_pts;
     std::vector<double> y_pts;
-    std::vector<BoundaryNode> boundary_nodes;
+    std::vector<BdyNode> boundary_nodes;
     double eps = 1e-5;
 
     double dx = grid_pts[1][0] - grid_pts[0][0];
@@ -211,8 +194,9 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>>& gri
                 // velocity_vecs.push_back( (Q - P)/vector_norm(Q - P) );
                 grid_pts[i][2] = 1;
 
-                BoundaryNode x_b = BoundaryNode(P[0], P[1]);
-                x_b.add_velocity_vec( vel_vec.normalized() );
+                BdyNode x_b;
+                x_b.Position = Eigen::Vector2d(P[0], P[1]);
+                x_b.velocity_vecs.push_back( vel_vec.normalized() );
 
                 for(int k = 0; k < solid_points.size(); k++)
                 {
@@ -222,7 +206,7 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>>& gri
                 
                     if((Q - P).norm() <= std::sqrt(2)*std::max(dx, dy) + eps)
                     {
-                        x_b.add_velocity_vec( Q-P /(Q-P).norm());
+                        x_b.velocity_vecs.push_back( Q-P /(Q-P).norm());
                     }
 
                 }
@@ -242,21 +226,21 @@ std::vector<BoundaryNode> label_bdy_points(std::vector<std::vector<double>>& gri
 
 }
 
-void distances_and_normals(std::vector<BoundaryNode>& boundary_nodes, std::vector< Eigen::Vector2d >& bdy_curve_pts)
+void distances_and_normals(std::vector<BdyNode>& boundary_nodes, std::vector< Eigen::Vector2d >& bdy_curve_pts)
 {
     for(int j = 0; j < boundary_nodes.size(); j++)
     {
-        Eigen::Vector2d x_b = boundary_nodes[j].getPosition();
+        Eigen::Vector2d x_b = boundary_nodes[j].Position;
 
-        std::vector< Eigen::Vector2d > velocity_vecs = boundary_nodes[j].getVelDirections();
+        std::vector< Eigen::Vector2d > velocity_vecs = boundary_nodes[j].velocity_vecs;
 
         for(int i = 0; i < velocity_vecs.size(); i++)
         {
-            Eigen::Vector2d unit_vel_vec = boundary_nodes[j].getVelDirections()[i];
+            Eigen::Vector2d unit_vel_vec = boundary_nodes[j].velocity_vecs[i];
             std::vector<Eigen::Vector2d> closest_pts = find_closest_points(bdy_curve_pts, x_b, unit_vel_vec);
             Eigen::Vector2d pt1 = closest_pts[0];
             Eigen::Vector2d v = closest_pts[1] - closest_pts[0];
-            v = v/v.norm();
+            v = v.normalized();
 
             Eigen::Matrix2d intersection_mat;
             intersection_mat << v[0], -unit_vel_vec[0],
@@ -273,10 +257,12 @@ void distances_and_normals(std::vector<BoundaryNode>& boundary_nodes, std::vecto
                 continue;
             else
             {
-                boundary_nodes[j].setDistance(delta);
+                boundary_nodes[j].distances.push_back(delta);
                 Eigen::Vector2d normal_vec(-1, -v[0]/v[1]);
                 normal_vec = normal_vec/normal_vec.norm();
-                boundary_nodes[j].setNormals(normal_vec);
+                boundary_nodes[j].normals.push_back(normal_vec);
+
+                
             }
 
         }
@@ -284,8 +270,8 @@ void distances_and_normals(std::vector<BoundaryNode>& boundary_nodes, std::vecto
     }
 }
 
-void write_data(std::vector<std::vector<double>>& grid_pts, std::vector< Eigen::Vector2d >& bdy_curve_pts,
-    std::vector<std::vector<double>>& solid_points, std::vector<BoundaryNode>& boundary_nodes )
+void write_data(const std::vector<std::vector<double>>& grid_pts, const std::vector< Eigen::Vector2d >& bdy_curve_pts,
+    const std::vector<std::vector<double>>& solid_points, std::vector<BdyNode>& boundary_nodes )
 {
     const int width = 10;
     const int precision = 5;
@@ -294,7 +280,7 @@ void write_data(std::vector<std::vector<double>>& grid_pts, std::vector< Eigen::
     std::vector<std::vector<double>> boundary_node_positions;
     for(int i = 0; i < boundary_nodes.size(); i++)
     {
-        Eigen::Vector2d x_b = boundary_nodes[i].getPosition();
+        Eigen::Vector2d x_b = boundary_nodes[i].Position;
         fprintf(outfile1, "%*.*f, %*.*f\n", width, precision, x_b[0], width, precision, x_b[1]);
 
     }
@@ -327,6 +313,8 @@ void write_data(std::vector<std::vector<double>>& grid_pts, std::vector< Eigen::
 
 
 
+
+
 int main()
 {
 
@@ -336,7 +324,7 @@ int main()
     double R = 1;
     int N_bdy_pts = 3200;
     int N_repeats = 1;
-    int n_grid_pts = 100;
+    int n_grid_pts = 20;
     double x_min= -2;
     double x_max = 2;
     double y_min = 0;
@@ -349,7 +337,7 @@ int main()
 
     std::vector<std::vector<double>> solid_points = label_solid_pts(grid_pts, bdy_curve_pts);
 
-    std::vector<BoundaryNode> boundary_nodes = label_bdy_points(grid_pts, solid_points);
+    std::vector<BdyNode> boundary_nodes = label_bdy_points(grid_pts, solid_points);
 
     distances_and_normals(boundary_nodes, bdy_curve_pts);
 

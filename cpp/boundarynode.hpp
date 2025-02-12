@@ -16,6 +16,7 @@ private:
     std::vector< Eigen::Vector2d > velocity_vecs;
     std::vector<double> distances;
     std::vector< Eigen::Vector2d > normals;
+    Eigen::MatrixXd matrix;
 
 public:
     BoundaryNode();
@@ -24,11 +25,14 @@ public:
     void setDistance(double dist);
     void setNormals(Eigen::Vector2d normal);
     void add_velocity_vec(Eigen::Vector2d vel_vec);
+    void setMatRow(Eigen::Vector2d normal, double dist);
 
     Eigen::Vector2d getPosition();
     std::vector<double> getDistances();
     std::vector< Eigen::Vector2d > getNormals();
     std::vector< Eigen::Vector2d > getVelDirections();
+
+    Eigen::MatrixXd getMatrix();
     
 
 };
@@ -38,6 +42,8 @@ BoundaryNode::BoundaryNode(double x, double y)
 {
     x_position = x;
     y_position = y;
+
+
 
 }
 
