@@ -11,6 +11,7 @@
 #include <valarray>
 #include "/home/zcandels/geom/cpp/boundarynode.hpp"
 #include <time.h>
+#include <omp.h>
 
 struct BdyNode
 {
@@ -46,22 +47,26 @@ std::vector<Eigen::Vector2d> find_closest_points(std::vector< Eigen::Vector2d > 
     Eigen::Vector2d closest_neg;
     std::vector<Eigen::Vector2d> closest_pts;
 
+    #pragma omp parallel for
     for(int idx = 0; idx < bdy_curve_pts.size(); idx++)
     {
         Eigen::Vector2d point = bdy_curve_pts[idx];
         double dist = signed_distance(point, x0, unit_vec);
 
-        if( dist > 0 && dist < min_pos_dist)
-        {
-            Eigen::Vector2d closest_pos = point;
-            double min_pos_dist = dist;
-        }
-        else if (dist < 0 && std::abs(dist) < min_neg_dist)
-        {
-            Eigen::Vector2d closest_neg = point;
-            double min_neg_dist = std::abs(dist);
-        }
 
+        #pragma omp critical
+        {
+            if( dist > 0 && dist < min_pos_dist)
+            {
+                Eigen::Vector2d closest_pos = point;
+                double min_pos_dist = dist;
+            }
+            else if (dist < 0 && std::abs(dist) < min_neg_dist)
+            {
+                Eigen::Vector2d closest_neg = point;
+                double min_neg_dist = std::abs(dist);
+            }
+        }
     }
     closest_pts.push_back(closest_neg);
     closest_pts.push_back(closest_pos);
@@ -130,6 +135,7 @@ std::vector<std::vector<double>> label_solid_pts(std::vector<std::vector<double>
         y_vals[i] = bdy_curve_pts[i][1];
     }
 
+    #pragma omp parallel for
     for (size_t i = 0; i < grid_pts.size(); ++i) 
     {
         double x_mesh_pt = grid_pts[i][0];
@@ -145,9 +151,14 @@ std::vector<std::vector<double>> label_solid_pts(std::vector<std::vector<double>
         double y1 = y_vals[idx - 1], y2 = y_vals[idx];
         double y_curve = y1 + (y2 - y1) * (x_mesh_pt - x1) / (x2 - x1);
 
-        if (y_mesh_pt < y_curve) {
+        if (y_mesh_pt < y_curve) 
+        {
             grid_pts[i][2] = 2;
-            solid_points.push_back({x_mesh_pt, y_mesh_pt});
+
+            #pragma omp critical
+            {
+                solid_points.push_back({x_mesh_pt, y_mesh_pt});
+            }
         }
     }
 
@@ -228,6 +239,7 @@ std::vector<BdyNode> label_bdy_points(std::vector<std::vector<double>>& grid_pts
 
 void distances_and_normals(std::vector<BdyNode>& boundary_nodes, std::vector< Eigen::Vector2d >& bdy_curve_pts)
 {
+    #pragma omp parallel for
     for(int j = 0; j < boundary_nodes.size(); j++)
     {
         Eigen::Vector2d x_b = boundary_nodes[j].Position;
@@ -268,6 +280,11 @@ void distances_and_normals(std::vector<BdyNode>& boundary_nodes, std::vector< Ei
         }
 
     }
+}
+
+void constructMatrix(std::vector<BdyNode>& boundary_nodes)
+{
+
 }
 
 void write_data(const std::vector<std::vector<double>>& grid_pts, const std::vector< Eigen::Vector2d >& bdy_curve_pts,
@@ -324,7 +341,7 @@ int main()
     double R = 1;
     int N_bdy_pts = 3200;
     int N_repeats = 1;
-    int n_grid_pts = 20;
+    int n_grid_pts = 100;
     double x_min= -2;
     double x_max = 2;
     double y_min = 0;
@@ -342,6 +359,8 @@ int main()
     distances_and_normals(boundary_nodes, bdy_curve_pts);
 
     write_data(grid_pts, bdy_curve_pts, solid_points, boundary_nodes );
+
+    constructMatrix(boundary_nodes);
 
     std::cout << "Time taken: " << (double)(clock() - start)/CLOCKS_PER_SEC << std::endl;
 
