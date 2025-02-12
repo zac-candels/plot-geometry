@@ -119,8 +119,7 @@ std::vector< Eigen::Vector2d > define_bdy_curve(int N_bdy_pts, double x_min, dou
 }
 
 
-std::vector<std::vector<double>> label_solid_pts(std::vector<std::vector<double>>& grid_pts, 
-                                                 const std::vector< Eigen::Vector2d >& bdy_curve_pts) 
+std::vector<std::vector<double>> label_solid_pts(int k, const std::vector< Eigen::Vector2d >& bdy_curve_pts) 
 {
     std::vector<std::vector<double>> solid_points;
 
@@ -329,10 +328,8 @@ void write_data(const std::vector<std::vector<double>>& grid_pts, const std::vec
 
 
 
-
 int main()
 {
-
 
     double alpha = 0.2;
     double R = 1;
@@ -358,6 +355,5 @@ int main()
     write_data(grid_pts, bdy_curve_pts, solid_points, boundary_nodes );
 
     constructMatrix(boundary_nodes);
-
 
 }
