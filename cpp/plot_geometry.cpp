@@ -17,6 +17,7 @@ struct BdyNode
     double y_position;
     Eigen::Vector2d Position;
     std::vector< Eigen::Vector2d > velocity_vecs;
+    std::vector< std::vector<double> > vecs;
     std::vector<double> distances;
     std::vector< Eigen::Vector2d > normals;
     Eigen::MatrixXd matrix;
@@ -56,13 +57,13 @@ std::vector<Eigen::Vector2d> find_closest_points(std::vector< Eigen::Vector2d > 
         {
             if( dist > 0 && dist < min_pos_dist)
             {
-                Eigen::Vector2d closest_pos = point;
-                double min_pos_dist = dist;
+                closest_pos = point;
+                min_pos_dist = dist;
             }
             else if (dist < 0 && std::abs(dist) < min_neg_dist)
             {
-                Eigen::Vector2d closest_neg = point;
-                double min_neg_dist = std::abs(dist);
+                closest_neg = point;
+                min_neg_dist = std::abs(dist);
             }
         }
     }
@@ -74,23 +75,102 @@ std::vector<Eigen::Vector2d> find_closest_points(std::vector< Eigen::Vector2d > 
 
 
 
+std::vector<Eigen::Vector2d> find_closest_points1(std::vector< Eigen::Vector2d > bdy_curve_pts, Eigen::Vector2d x0, Eigen::Vector2d unit_vec)
+{
+    double min_pos_dist = 100.;
+    double min_neg_dist = 100.;
+
+    std::vector<Eigen::Vector2d> closest_pts;
+    std::vector<double> negative_distances;
+    std::vector<Eigen::Vector2d> negative_points;
+    std::vector<double> positive_distances;
+    std::vector<Eigen::Vector2d> positive_points;
+
+    #pragma omp parallel for
+    for(int idx = 0; idx < bdy_curve_pts.size(); idx++)
+    {
+
+        Eigen::Vector2d point = bdy_curve_pts[idx];
+        if( (point - x0).norm() > sqrt(2) )
+        {
+         continue;
+        }
+        double dist = signed_distance(point, x0, unit_vec);
+        if(dist > 0.0)
+        {
+            positive_distances.push_back(dist);
+            positive_points.push_back(point); 
+        }
+        else if (dist < 0.0)
+        {
+            negative_distances.push_back(dist);
+            negative_points.push_back(point); 
+        }
+
+    }
+
+    Eigen::Vector2d closest_positive_point, closest_negative_point;
+
+    if (negative_distances.empty() && !positive_distances.empty())
+    {
+        auto closest_pos_it = std::min_element(positive_distances.begin(), positive_distances.end());
+        int closest_pos_idx = std::distance(positive_distances.begin(), closest_pos_it);
+        closest_positive_point = positive_points[closest_pos_idx];
+        closest_pts.push_back(closest_positive_point);
+
+        return closest_pts;
+    }
+    else if (positive_distances.empty() && !negative_distances.empty() )
+    {
+        auto closest_neg_it = std::max_element(negative_distances.begin(), negative_distances.end());
+        int closest_neg_idx = std::distance(negative_distances.begin(), closest_neg_it);
+        closest_negative_point = negative_points[closest_neg_idx];
+        closest_pts.push_back(closest_negative_point);
+
+        return closest_pts;
+    }
+    else if (!positive_distances.empty() && !negative_distances.empty() )
+    {
+        auto closest_pos_it = std::min_element(positive_distances.begin(), positive_distances.end());
+        int closest_pos_idx = std::distance(positive_distances.begin(), closest_pos_it);
+        closest_positive_point = positive_points[closest_pos_idx];
+        closest_pts.push_back(closest_positive_point);
+
+        auto closest_neg_it = std::max_element(negative_distances.begin(), negative_distances.end());
+        int closest_neg_idx = std::distance(negative_distances.begin(), closest_neg_it);
+        closest_negative_point = negative_points[closest_neg_idx];
+        closest_pts.push_back(closest_negative_point);
+
+        return closest_pts;
+    }
+    else
+    {
+        closest_positive_point = x0;
+        closest_pts.push_back(closest_positive_point);
+        return closest_pts;
+    }
+
+
+}
+
+
 // End of the BoundaryNode class. Now we can move on to the other functions.
 
 
 
-std::vector<std::vector<double>> make_grid(double x_min, double x_max, double y_min, double y_max, int n_grid_pts) 
+std::vector<std::vector<double>> make_grid(double x_min, double x_max, double y_min, double y_max, int num_pts_x, int num_pts_y) 
 {
 
     std::vector<std::vector<double>> grid_pts;
-    grid_pts.reserve(n_grid_pts * n_grid_pts);
+    grid_pts.reserve(num_pts_x * num_pts_y);
 
-    Eigen::VectorXd x_pts = Eigen::VectorXd::LinSpaced(n_grid_pts, x_min, x_max);
-    Eigen::VectorXd y_pts = Eigen::VectorXd::LinSpaced(n_grid_pts, y_min, y_max);
+    Eigen::VectorXd x_pts = Eigen::VectorXd::LinSpaced(num_pts_x, x_min, x_max);
+    Eigen::VectorXd y_pts = Eigen::VectorXd::LinSpaced(num_pts_y, y_min, y_max);
 
 
-    for (int i = 0; i < n_grid_pts; ++i) 
+    for (int i = 0; i < num_pts_x; ++i) 
     {
-        for (int j = 0; j < n_grid_pts; ++j) 
+        for (int j = 0; j < num_pts_y ; ++j) 
         {
             grid_pts.push_back({x_pts[i], y_pts[j], 0.0});
         }
@@ -110,7 +190,7 @@ std::vector< Eigen::Vector2d > define_bdy_curve(int N_bdy_pts, double x_min, dou
 
     for (int i = 0; i < N_bdy_pts; i++)
     {
-        y_vals[i] = ( pow(sin(5 * M_PI * x_vals[i]), 2.) );
+        y_vals[i] = ( 5*sin(M_PI/50 * x_vals[i]) + 10 );
         bdy_curve_pts.push_back( { x_vals[i], y_vals[i] } );
 
     }
@@ -196,16 +276,20 @@ std::vector<BdyNode> label_bdy_points(std::vector<std::vector<double>>& grid_pts
             Eigen::Vector2d Q(solid_points[j][0], solid_points[j][1]);
 
             Eigen::Vector2d vel_vec = Q - P;
+            Eigen::Vector2d vel_vec2;
+
 
             if (vel_vec.norm() <=  sqrt(2.0)*std::max(dx, dy) + eps)
             {
-                Eigen::Vector2d vel_vec(2);
+
                 // velocity_vecs.push_back( (Q - P)/vector_norm(Q - P) );
                 grid_pts[i][2] = 1;
 
                 BdyNode x_b;
                 x_b.Position = Eigen::Vector2d(P[0], P[1]);
                 x_b.velocity_vecs.push_back( vel_vec.normalized() );
+                std::vector<double> ez_read_vec(vel_vec.data(), vel_vec.data() + vel_vec.size());
+                x_b.vecs.push_back(ez_read_vec);
 
                 for(int k = 0; k < solid_points.size(); k++)
                 {
@@ -213,9 +297,13 @@ std::vector<BdyNode> label_bdy_points(std::vector<std::vector<double>>& grid_pts
                     {continue;}
                     Eigen::Vector2d Q(solid_points[k][0], solid_points[k][1]);
                 
-                    if((Q - P).norm() <= std::sqrt(2)*std::max(dx, dy) + eps)
+                    vel_vec2 = Q - P;
+                    if(vel_vec2.norm() <= std::sqrt(2)*std::max(dx, dy) + eps)
                     {
-                        x_b.velocity_vecs.push_back( Q-P /(Q-P).norm());
+                        x_b.velocity_vecs.push_back( vel_vec2.normalized() );
+                        Eigen::Vector2d V = vel_vec2.normalized();
+                        std::vector<double> ez_read_vec(V.data(), V.data() + V.size());
+                        x_b.vecs.push_back(ez_read_vec);
                     }
 
                 }
@@ -247,7 +335,7 @@ void distances_and_normals(std::vector<BdyNode>& boundary_nodes, std::vector< Ei
         for(int i = 0; i < velocity_vecs.size(); i++)
         {
             Eigen::Vector2d unit_vel_vec = boundary_nodes[j].velocity_vecs[i];
-            std::vector<Eigen::Vector2d> closest_pts = find_closest_points(bdy_curve_pts, x_b, unit_vel_vec);
+            std::vector<Eigen::Vector2d> closest_pts = find_closest_points1(bdy_curve_pts, x_b, unit_vel_vec);
             Eigen::Vector2d pt1 = closest_pts[0];
             Eigen::Vector2d v = closest_pts[1] - closest_pts[0];
             v = v.normalized();
@@ -263,12 +351,15 @@ void distances_and_normals(std::vector<BdyNode>& boundary_nodes, std::vector< Ei
 
             double delta = intersection_distances[1];
 
-            if( delta > 1)
+            if( delta > sqrt(2))
+            {
+                std::cout << "Houston, we've got a problem.";
                 continue;
+            }
             else
             {
                 boundary_nodes[j].distances.push_back(delta);
-                Eigen::Vector2d normal_vec(-1, -v[0]/v[1]);
+                Eigen::Vector2d normal_vec(1, -v[0]/v[1]);
                 normal_vec = normal_vec/normal_vec.norm();
                 boundary_nodes[j].normals.push_back(normal_vec);
 
@@ -339,13 +430,15 @@ int main()
     int N_bdy_pts = 3200;
     int N_repeats = 1;
     int n_grid_pts = 100;
-    double x_min= -2;
-    double x_max = 2;
+    double x_min= 0;
+    double x_max = 200;
     double y_min = 0;
-    double y_max = 4;
+    double y_max = 50;
+    int num_pts_x = 200;
+    int num_pts_y = 50;
 
 
-    std::vector<std::vector<double>> grid_pts = make_grid(x_min, x_max, y_min, y_max, n_grid_pts); // Won't need this, grid points comes from LBM code.
+    std::vector<std::vector<double>> grid_pts = make_grid(x_min, x_max, y_min, y_max, num_pts_x, num_pts_y); // Won't need this, grid points comes from LBM code.
 
     std::vector< Eigen::Vector2d > bdy_curve_pts = define_bdy_curve(N_bdy_pts, x_min, x_max);
 
