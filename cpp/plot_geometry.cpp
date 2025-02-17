@@ -325,6 +325,7 @@ std::vector<BdyNode> label_bdy_points(std::vector<std::vector<double>>& grid_pts
 
 void distances_and_normals(std::vector<BdyNode>& boundary_nodes, std::vector< Eigen::Vector2d >& bdy_curve_pts)
 {
+    double eps = 3*1e-2;
     #pragma omp parallel for
     for(int j = 0; j < boundary_nodes.size(); j++)
     {
@@ -351,9 +352,9 @@ void distances_and_normals(std::vector<BdyNode>& boundary_nodes, std::vector< Ei
 
             double delta = intersection_distances[1];
 
-            if( delta > sqrt(2))
+            if( delta > sqrt(2) + eps )
             {
-                std::cout << "Houston, we've got a problem.";
+                std::cout << "delta = " << delta << "\n\n";
                 continue;
             }
             else
@@ -447,6 +448,14 @@ int main()
     std::vector<BdyNode> boundary_nodes = label_bdy_points(grid_pts, solid_points);
 
     distances_and_normals(boundary_nodes, bdy_curve_pts);
+
+    for( BdyNode node : boundary_nodes )
+    {
+        int n = node.velocity_vecs.size();
+        int m = node.normals.size();
+        if(n != m)
+        printf("Houston, we have a problem \n\n");
+    }
 
     write_data(grid_pts, bdy_curve_pts, solid_points, boundary_nodes );
 
