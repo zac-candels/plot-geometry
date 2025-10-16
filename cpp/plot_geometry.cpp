@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <vector>
 #include <numeric> 
@@ -372,9 +374,31 @@ void distances_and_normals(std::vector<BdyNode>& boundary_nodes, std::vector< Ei
     }
 }
 
-void constructMatrix(std::vector<BdyNode>& boundary_nodes)
+void constructMatrices(std::vector<BdyNode>& boundary_nodes)
 {
+    for(BdyNode node : boundary_nodes)
+    {
+        std::vector<Eigen::Vector2d> normals = node.normals;
+        std::vector<double> distances = node.distances;
+        std::vector<Eigen::Vector2d> velocities = node.velocity_vecs;
+        if( distances.size() != normals.size() )
+        {
+            std::cout << "Different number of distances and normal vectors" << std::endl;
+            exit(0);
+        }
 
+        for(int i = 0; i < normals.size(); i ++)
+        {   
+            Eigen::Vector2d velocity_vec = velocities[i];
+            Eigen::Vector2d normal_vec = normals[i];
+            double dist = distances[i];
+            node.matrix(i, 0) = normal_vec[0];
+            node.matrix(i, 1) = normal_vec[1];
+            node.matrix(i, 2) = dist*normal_vec[0]*velocity_vec[0];
+            node.matrix(i, 3) = dist*normal_vec[1]*velocity_vec[1];
+            node.matrix(i, 4) = dist*(normal_vec[1]*velocity_vec[0] + normal_vec[0]*velocity_vec[1]);
+        }
+    }
 }
 
 void write_data(const std::vector<std::vector<double>>& grid_pts, const std::vector< Eigen::Vector2d >& bdy_curve_pts,
@@ -459,7 +483,7 @@ int main()
 
     write_data(grid_pts, bdy_curve_pts, solid_points, boundary_nodes );
 
-    constructMatrix(boundary_nodes);
+    constructMatrices(boundary_nodes);
 
 
 }
