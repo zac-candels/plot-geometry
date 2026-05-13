@@ -18,9 +18,9 @@
 
 using namespace std;
 
-#define TX 864
+#define TX 60
 #define TY 29
-#define TZ 42
+#define TZ 43
 #define PX 10
 #define PY 1
 #define PZ 1
