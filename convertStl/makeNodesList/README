@@ -1,0 +1,48 @@
+############################################################
+README for define_nodes.f90
+Jack Panter 2026_05_01
+############################################################
+
+Description:
+-----------------------------------------------------------
+define_nodes.f90 is a program that reads in pre-made files defining the vertices and faces of a solid surface. The program then:
+1)Scales the vertex cooridinates to user requirements 
+2)Allocates a cartesian array of dimension GRIDX x GRIDY x GRIDZ
+2)Populates this array to indicate whether each element of the array is inside or outside the solid surface
+3)Writes this array for downstream use
+
+
+Input files:
+-----------------------------------------------------------
+verts.in - a list of vertices of the surface, where each line is an individual vertex, and each line contains the x, y, and z vertex coordinate. (Space or tab separated)
+faces.in - a list of faces of the surface, where each line is an individual face, and each line contains the 3 indices of the vertices that comprise the face. (Face must be triangular).
+
+
+Input variables:
+-----------------------------------------------------------
+The program file define_nodes.f90 contains 2 variables the user needs to define:
+SCALE_FACTOR - the conversion factor between the units in verts.in, and lattice units, used to define GRIDX and GRIDY
+Z_FACTOR - the ratio between the surface height and the desired system z-height (in Lattice units), used with SCALE_FACTOR to define GRIDZ
+
+
+Output files:
+-----------------------------------------------------------
+verts_scaled.out - a list of vertex coordinates in lattice units
+faces_scaled.out - a list of faces used with verts_scaled.out
+
+nodes.out - a 1-dimensional list of GRIDX*GRIDY*GRIDZ elements defining whether each element of the GRIDX x GRIDY x GRIDZ array is inside or outside the surface.
+Inside nodes are indicated with a -1, inside nodes are indicated with a +1. Note the nested loop order used to write the 1D file from a 3D array (from outer to inner loop): 
+Loop over X, loop over Y, loop over Z.
+
+
+Assumptions:
+-----------------------------------------------------------
+It is assumed that the input surface lies in the x-y plane, and the vertically upwards direction is the positive z direction. 
+
+
+Running:
+-----------------------------------------------------------
+Compile and run as with normal FORTRAN90 programs, e.g.:
+
+gfortran -o define_nodes define_nodes.f90
+define_nodes
