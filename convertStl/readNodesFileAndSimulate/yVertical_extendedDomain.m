@@ -14,7 +14,7 @@ fclose(fid);
 assert(numel(v) == TX*TY*TZ, '数据量不匹配：期望 %d，实际 %d', TX*TY*TZ, numel(v));
 tmp = reshape(v, [TZ, TY, TX]);   % tmp(k, j, i)
 
-A = permute(tmp, [1 2 3]);       % A(i, j, k) 尺寸: (nx, ny, nz)
+A = tmp; %permute(tmp, [1 2 3]);       % A(i, j, k) 尺寸: (nx, ny, nz)
 TZ = 42
 disp(size(A));
 disp([min(A(:)) max(A(:))]);
