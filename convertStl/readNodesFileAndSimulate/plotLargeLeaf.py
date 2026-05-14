@@ -8,7 +8,7 @@ from skimage import measure
 # --- Parameters ---
 filename = '/home/zcandels/plot-geometry/convertStl/readNodesFileAndSimulate/largeLeaf.txt'
 
-TX = 60; TY = 29; TZ = 43
+TX = 95; TY = 29; TZ = 43
 
 PX = 10
 PY = 1

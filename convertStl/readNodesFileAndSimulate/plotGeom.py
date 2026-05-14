@@ -44,12 +44,14 @@ for i in range(TX):
             G[TX - 1 - i, j, k] = A[k, j, i]
 
 # --- Remap solid values ---
-# Replace 1 -> 2 (solid with contact angle 30)
-G[G == 1] = 2
+# Replace 1 -> 0 (gas)
+solidIdx = 3
+gasIdx = 0
+G[G == 1] = gasIdx
 
-# --- Liquid initialisation ---
-# Replace -1 -> 1
-G[G == -1] = 1
+# --- Solid initialisation ---
+# Replace -1 -> solidIdx
+G[G == -1] = solidIdx
 
 print("------------------")
 print(G.shape)
@@ -62,66 +64,83 @@ for i in range(532, 606):
             smallLeafFile.write("\n")
             
 ctr = 0
-for i in range(600, 660):
+for i in range(600, 695):
     for j in range(TY):
         for k in range(TZ):
 
-            if ( i  > 630 ) and (i <= 660):
-                if ( j >= 10 ) and (j < 21):
-                    if (k >=0) and (k <= 22):
-                        if G[i,j,k] == 1:
-                            largeLeafFile.write(str(2))
-                            largeLeafFile.write("\n")
-                            ctr +=1 
-                            continue
-            if (i > 652) and (i <= 660):
-                if (j>=15) and (j <= TY):
-                    if (k >= 0) and (k <= 15):
-                        if G[i,j,k] == 1:
-                            largeLeafFile.write(str(2))
-                            largeLeafFile.write("\n")
-                            ctr +=1 
-                            continue
-            
+            # if ( i  > 630 ) and (i <= 660):
+            #     if ( j >= 10 ) and (j < 21):
+            #         if (k >=0) and (k <= 22):
+            #             if G[i,j,k] == 1:
+            #                 largeLeafFile.write(str(2))
+            #                 largeLeafFile.write("\n")
+            #                 ctr +=1 
+            #                 continue
+            # if (i > 652) and (i <= 660):
+            #     if (j>=15) and (j <= TY):
+            #         if (k >= 0) and (k <= 15):
+            #             if G[i,j,k] == 1:
+            #                 largeLeafFile.write(str(2))
+            #                 largeLeafFile.write("\n")
+            #                 ctr +=1 
+            #                 continue
+                        
+            # if ( i  > 630 ) and (i <= 660):
+            #     if ( j >= 10 ) and (j < 21):
+            #         if (k <= TZ) and (k >= TZ - 22):
+            #             if G[i,j,k] == 1:
+            #                 largeLeafFile.write(str(2))
+            #                 largeLeafFile.write("\n")
+            #                 ctr +=1 
+            #                 continue
+            # if (i > 652) and (i <= 660):
+            #     if (j>=15) and (j <= TY):
+            #         if (k <= TZ ) and (k >= TZ - 15):
+            #             if G[i,j,k] == 1:
+            #                 largeLeafFile.write(str(2))
+            #                 largeLeafFile.write("\n")
+            #                 ctr +=1 
+            #                 continue
+    
             largeLeafFile.write(str(int(G[i,j,k])))
             largeLeafFile.write("\n")
             ctr+=1
 print("ctr = ", ctr)
 
 smallLeafFile.close()
+
+# --- Extend domain in Y by Ny_extra --- 
+Ny_extra = 30 
+G_Y_ext = gasIdx*np.ones((TX, TY + Ny_extra, TZ), dtype=np.float32)
+G_Y_ext[:, 0: Ny_extra - 1 , :] = G 
+G = G_Y_ext
+TY_old = TY
+TY = TY + Ny_extra
+
 # --- Extend domain in X by Nx_extra ---
 Nx_extra = 100
-G_ext = np.ones((TX + Nx_extra, TY, TZ), dtype=np.float32)
+G_X_ext = gasIdx*np.ones((TX + Nx_extra, TY, TZ), dtype=np.float32)
 
 # MATLAB: G_ext(Nx_extra : Nx_extra-1+TX, :, :) = G
 # MATLAB 1-based inclusive [Nx_extra, Nx_extra-1+TX] -> 0-based [Nx_extra-1, Nx_extra-1+TX)
-G_ext[Nx_extra - 1 : Nx_extra - 1 + TX, :, :] = G
+G_X_ext[Nx_extra - 1 : Nx_extra - 1 + TX, :, :] = G
 
 TX_old = TX
 TX = TX + Nx_extra
 
-G = G_ext
+G = G_X_ext
 
-# --- Set a block of cells to solid (2) ---
+# --- Set a block of cells to solid (3) ---
 # MATLAB: i=1:100, j=1:10  -> 0-based: i=0:100, j=0:10
-G[0:100, 0:10, 0:TZ] = 2
+# This creates space for a reservoir before the leaves start
+G[:, 0:10, 0:TZ] = solidIdx
 
-# --- Visualisation (isosurface equivalent) ---
-try:
-    verts, faces, _, _ = measure.marching_cubes(G, level=0.5)
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    mesh = Poly3DCollection(verts[faces], alpha=0.3)
-    mesh.set_edgecolor('k')
-    ax.add_collection3d(mesh)
-    ax.set_xlim(0, G.shape[0])
-    ax.set_ylim(0, G.shape[1])
-    ax.set_zlim(0, G.shape[2])
-    ax.set_box_aspect([1, 1, 1])
-    plt.tight_layout()
-    plt.show()
-except Exception as e:
-    print(f'Visualisation skipped: {e}')
+# for i in range(0, Nx_extra):
+#     for j in range(0, TY):
+#         for k in range(0, TZ):
+            
+
+
 
 # --- Write partitioned data files ---
 os.makedirs('data', exist_ok=True)
