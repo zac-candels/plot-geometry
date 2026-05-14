@@ -135,9 +135,24 @@ G = G_X_ext
 # This creates space for a reservoir before the leaves start
 G[:, 0:10, 0:TZ] = solidIdx
 
-# for i in range(0, Nx_extra):
-#     for j in range(0, TY):
-#         for k in range(0, TZ):
+reservoirFrontWall_x = Nx_extra - 7
+reservoirBackWall_x = 7
+reservoirHeight = int(0.9*TY)
+reservoirLiquidHeight = int(0.9*reservoirHeight)
+reservoirOutletHeight = int(0.25*reservoirHeight)
+dx = 5
+for i in range(0, Nx_extra):
+    for j in range(0, TY):
+        for k in range(0, TZ):
+            
+            reservoirBackWallCond = (i >=reservoirBackWall_x) and (i <= reservoirBackWall_x + dx) and (j <= reservoirHeight)
+            reservoirFrontWallCond = (i >= reservoirFrontWall_x - dx ) and (i<= reservoirFrontWall_x) and (j > reservoirOutletHeight) and (j <= reservoirHeight)
+            
+            if G[i,j,k] == gasIdx:
+                if reservoirBackWallCond or reservoirFrontWallCond: 
+                    print("condition met")
+                    G[i,j,k] = solidIdx
+                    print("New value is", G[i,j,k])
             
 
 
